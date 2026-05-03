@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: soria-postgres
+    environment:
+      POSTGRES_DB: soria_prospecting
+      POSTGRES_USER: soria
+      POSTGRES_PASSWORD: soria
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soria -d soria_prospecting"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

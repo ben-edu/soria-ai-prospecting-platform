@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: soria_prospecting
+          POSTGRES_USER: soria
+          POSTGRES_PASSWORD: soria
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U soria -d soria_prospecting
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://soria:soria@localhost:5432/soria_prospecting
+        run: uv run alembic upgrade head
+
+      - name: Seed initial data
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://soria:soria@localhost:5432/soria_prospecting
+        run: uv run python -m app.scripts.seed_initial_data
+
+      - name: Confirm seed idempotence (run again)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://soria:soria@localhost:5432/soria_prospecting
+        run: uv run python -m app.scripts.seed_initial_data
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://soria:soria@localhost:5432/soria_prospecting
+        run: uv run pytest
+
+      - name: Lint with ruff
+        working-directory: backend
+        run: uv run ruff check .
