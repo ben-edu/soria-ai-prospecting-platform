@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: soria-prospecting
+
+resources:
+  - ../../base
+
+images:
+  - name: harbor.proxbenovh.cloud/devops-project-harbor/soria-backend
+    newName: harbor.proxbenovh.cloud/devops-project-harbor/soria-backend
+    newTag: latest
+  - name: harbor.proxbenovh.cloud/devops-project-harbor/soria-cockpit
+    newName: harbor.proxbenovh.cloud/devops-project-harbor/soria-cockpit
+    newTag: latest

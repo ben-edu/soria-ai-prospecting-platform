@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: soria-migrate-seed
+  namespace: soria-prospecting
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: harbor-regcred
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: migrate-seed
+          image: harbor.proxbenovh.cloud/devops-project-harbor/soria-backend:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+
+              echo "Waiting for PostgreSQL to become reachable..."
+
+              for i in $(seq 1 30); do
+                if /app/.venv/bin/python -c "import os; from sqlalchemy import create_engine, text; engine = create_engine(os.environ['DATABASE_URL']); conn = engine.connect(); conn.execute(text('select 1')); conn.close()"; then
+                  echo "PostgreSQL is reachable."
+                  break
+                fi
+
+                if [ "$i" -eq 30 ]; then
+                  echo "PostgreSQL did not become reachable in time."
+                  exit 1
+                fi
+
+                echo "PostgreSQL not ready yet, retry $i/30..."
+                sleep 3
+              done
+
+              echo "Running Alembic migrations..."
+              /app/.venv/bin/alembic upgrade head
+
+              echo "Running initial seed..."
+              /app/.venv/bin/python -m app.scripts.seed_initial_data
+
+              echo "Migration and seed completed."
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: APP_ENV
+            - name: API_V1_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: API_V1_PREFIX
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: CORS_ORIGINS
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: DATABASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: SECRET_KEY
