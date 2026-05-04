@@ -21,8 +21,19 @@ pipeline {
     stages {
         stage('Checkout info') {
             steps {
-                echo "Branch: ${env.BRANCH_NAME}"
-                echo "Commit: ${env.GIT_COMMIT}"
+                sh '''
+                    echo "=== current directory ==="
+                    pwd
+
+                    echo "=== branch name ==="
+                    echo "${BRANCH_NAME}"
+
+                    echo "=== git commit ==="
+                    git rev-parse --short HEAD
+
+                    echo "=== git commit message ==="
+                    git log -1 --pretty=%B
+                '''
             }
         }
 
@@ -37,21 +48,36 @@ pipeline {
 
         stage('Frontend quality gates') {
             steps {
-                dir('frontend/cockpit') {
-                    sh 'npm ci'
-                    sh 'npm run type-check'
-                    sh 'npm run build'
-                }
+                sh '''
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -e VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+                      -v "$PWD/frontend/cockpit:/work" \
+                      -w /work \
+                      node:22-alpine \
+                      sh -lc "npm ci && npm run type-check && npm run build"
+                '''
             }
         }
 
         stage('Backend quality gates') {
             steps {
-                dir('backend') {
-                    sh 'uv sync'
-                    sh 'uv run pytest'
-                    sh 'uv run ruff check .'
-                }
+                sh '''
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -v "$PWD/backend:/work" \
+                      -w /work \
+                      python:3.12-slim \
+                      sh -lc '
+                        python -m pip install --user --no-cache-dir uv
+                        export PATH="$HOME/.local/bin:$PATH"
+                        uv sync
+                        uv run pytest
+                        uv run ruff check .
+                      '
+                '''
             }
         }
 
@@ -112,6 +138,8 @@ pipeline {
             steps {
                 sh '''
                     kubectl kustomize "${KUSTOMIZE_OVERLAY}" > "/tmp/soria-rendered-${BUILD_NUMBER}.yaml"
+
+                    echo "=== rendered important lines ==="
                     grep -E "soria-backend|soria-cockpit|soria-migrate-seed|react-admin.behnam.fr" "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" | head -80 || true
                 '''
             }
@@ -122,26 +150,19 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'kubectl get nodes'
-                sh "kubectl get ns ${K8S_NAMESPACE}"
+                sh '''
+                    echo "=== kubectl / kubeconfig ==="
+                    which kubectl
+                    test -f "${KUBECONFIG}"
+                    kubectl get nodes
 
-                script {
-                    def secretsExist = sh(
-                        returnStatus: true,
-                        script: "kubectl get secret soria-secrets -n ${K8S_NAMESPACE} > /dev/null 2>&1"
-                    )
-                    if (secretsExist != 0) {
-                        error "Required secret 'soria-secrets' not found in namespace ${K8S_NAMESPACE}. Create it before deploying."
-                    }
+                    echo "=== namespace ==="
+                    kubectl get ns "${K8S_NAMESPACE}"
 
-                    def regcredExist = sh(
-                        returnStatus: true,
-                        script: "kubectl get secret harbor-regcred -n ${K8S_NAMESPACE} > /dev/null 2>&1"
-                    )
-                    if (regcredExist != 0) {
-                        error "Required secret 'harbor-regcred' not found in namespace ${K8S_NAMESPACE}. Copy it from fastapi-platform before deploying."
-                    }
-                }
+                    echo "=== required secrets ==="
+                    kubectl get secret soria-secrets -n "${K8S_NAMESPACE}"
+                    kubectl get secret harbor-regcred -n "${K8S_NAMESPACE}"
+                '''
             }
         }
 
@@ -162,12 +183,22 @@ sha = os.environ["GIT_SHA"]
 
 text = path.read_text()
 text = re.sub(r"newTag: .*", f"newTag: {sha}", text)
-
 path.write_text(text)
+
 print(path.read_text())
 PY
 
                     kubectl kustomize "${KUSTOMIZE_OVERLAY}" > "/tmp/soria-rendered-${BUILD_NUMBER}.yaml"
+
+                    echo "=== validate rendered images use SHA ==="
+                    grep -q "${BACKEND_IMAGE}:${GIT_SHA}" "/tmp/soria-rendered-${BUILD_NUMBER}.yaml"
+                    grep -q "${COCKPIT_IMAGE}:${GIT_SHA}" "/tmp/soria-rendered-${BUILD_NUMBER}.yaml"
+
+                    echo "=== validate no latest image remains ==="
+                    if grep -E 'image: .*:latest' "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" >/dev/null; then
+                      echo "ERROR: rendered manifest still contains :latest"
+                      exit 1
+                    fi
                 '''
             }
         }
@@ -198,8 +229,10 @@ PY
                 branch 'main'
             }
             steps {
-                sh 'kubectl wait --for=condition=complete job/soria-migrate-seed -n "${K8S_NAMESPACE}" --timeout=300s'
-                sh 'kubectl logs job/soria-migrate-seed -n "${K8S_NAMESPACE}"'
+                sh '''
+                    kubectl wait --for=condition=complete job/soria-migrate-seed -n "${K8S_NAMESPACE}" --timeout=300s
+                    kubectl logs job/soria-migrate-seed -n "${K8S_NAMESPACE}"
+                '''
             }
         }
 
@@ -208,8 +241,10 @@ PY
                 branch 'main'
             }
             steps {
-                sh 'kubectl rollout status deployment/soria-backend -n "${K8S_NAMESPACE}" --timeout=180s'
-                sh 'kubectl rollout status deployment/soria-cockpit -n "${K8S_NAMESPACE}" --timeout=180s'
+                sh '''
+                    kubectl rollout status deployment/soria-backend -n "${K8S_NAMESPACE}" --timeout=180s
+                    kubectl rollout status deployment/soria-cockpit -n "${K8S_NAMESPACE}" --timeout=180s
+                '''
             }
         }
 
@@ -218,7 +253,17 @@ PY
                 branch 'main'
             }
             steps {
-                sh 'kubectl get pods,svc,ingress -n "${K8S_NAMESPACE}"'
+                sh '''
+                    kubectl get pods,svc,ingress -n "${K8S_NAMESPACE}"
+
+                    echo "=== live backend image ==="
+                    kubectl get deployment/soria-backend -n "${K8S_NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}'
+                    echo
+
+                    echo "=== live cockpit image ==="
+                    kubectl get deployment/soria-cockpit -n "${K8S_NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}'
+                    echo
+                '''
             }
         }
 
@@ -227,8 +272,10 @@ PY
                 branch 'main'
             }
             steps {
-                sh 'curl -k -f -I "${PUBLIC_HOST}/"'
-                sh 'curl -k -fsS "${PUBLIC_HOST}/api/v1/health"'
+                sh '''
+                    curl -k -f -I --retry 5 --retry-delay 5 --retry-connrefused "${PUBLIC_HOST}/"
+                    curl -k -fsS --retry 5 --retry-delay 5 --retry-connrefused "${PUBLIC_HOST}/api/v1/health"
+                '''
             }
         }
 
@@ -239,18 +286,20 @@ PY
                 }
             }
             steps {
-                echo "Branch is ${env.BRANCH_NAME}. Images were built and pushed, but Kubernetes deployment was skipped because this is not main."
+                echo "Branch is ${env.BRANCH_NAME}. Images were built and pushed, manifests rendered, but Kubernetes deployment was skipped because this is not main."
             }
         }
     }
 
     post {
         always {
-            sh 'docker logout "${REGISTRY}" || true'
-            sh 'rm -f "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" || true'
+            sh '''
+                docker logout "${REGISTRY}" || true
+                rm -f "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" || true
+            '''
         }
         failure {
-            echo "Pipeline failed. Check the logs above for details."
+            echo "Pipeline failed."
         }
         success {
             echo "Pipeline completed successfully."
