@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: soria-prospecting
+  namespace: soria-prospecting
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: react-admin.behnam.fr
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: soria-backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: soria-cockpit
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - react-admin.behnam.fr

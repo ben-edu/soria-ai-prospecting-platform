@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: soria-backend
+  namespace: soria-prospecting
+spec:
+  selector:
+    app: soria-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soria-backend
+  namespace: soria-prospecting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soria-backend
+  template:
+    metadata:
+      labels:
+        app: soria-backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-regcred
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: backend
+          image: harbor.proxbenovh.cloud/devops-project-harbor/soria-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: APP_ENV
+            - name: API_V1_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: API_V1_PREFIX
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: soria-config
+                  key: CORS_ORIGINS
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: DATABASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: SECRET_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000

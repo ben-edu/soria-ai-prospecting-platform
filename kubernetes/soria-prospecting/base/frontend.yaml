@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: soria-cockpit
+  namespace: soria-prospecting
+spec:
+  selector:
+    app: soria-cockpit
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soria-cockpit
+  namespace: soria-prospecting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soria-cockpit
+  template:
+    metadata:
+      labels:
+        app: soria-cockpit
+    spec:
+      imagePullSecrets:
+        - name: harbor-regcred
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+      containers:
+        - name: cockpit
+          image: harbor.proxbenovh.cloud/devops-project-harbor/soria-cockpit:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080

@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: soria-prospecting
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: soria-prospecting
+spec:
+  selector:
+    app: soria-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soria-postgres
+  namespace: soria-prospecting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soria-postgres
+  template:
+    metadata:
+      labels:
+        app: soria-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: soria_prospecting
+            - name: POSTGRES_USER
+              value: soria
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - soria
+                - -d
+                - soria_prospecting
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - soria
+                - -d
+                - soria_prospecting
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

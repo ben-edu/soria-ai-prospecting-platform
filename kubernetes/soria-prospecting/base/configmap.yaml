@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soria-config
+  namespace: soria-prospecting
+data:
+  APP_ENV: production
+  CORS_ORIGINS: "https://react-admin.behnam.fr"
+  API_V1_PREFIX: /api/v1
