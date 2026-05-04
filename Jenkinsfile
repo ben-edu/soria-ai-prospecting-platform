@@ -40,9 +40,13 @@ pipeline {
         stage('Resolve SHA') {
             steps {
                 script {
-                    env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                    echo "GIT_SHA=${env.GIT_SHA}"
+                    env.GIT_SHA = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
                 }
+
+                echo "Using image tag: ${env.GIT_SHA}"
             }
         }
 
@@ -79,6 +83,24 @@ pipeline {
                         uv run ruff check .
                       '
                 '''
+            }
+        }
+
+        stage('Docker login to Harbor') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'harbor-robot-devops-project-harbor',
+                    usernameVariable: 'HARBOR_USERNAME',
+                    passwordVariable: 'HARBOR_PASSWORD'
+                )]) {
+                    sh '''
+                        set +x
+                        echo "${HARBOR_PASSWORD}" | docker login "${REGISTRY}" \
+                          -u "${HARBOR_USERNAME}" \
+                          --password-stdin
+                        set -x
+                    '''
+                }
             }
         }
 
@@ -138,9 +160,14 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "=== kubectl / kubeconfig ==="
+                    echo "=== kubectl path ==="
                     which kubectl
+
+                    echo "=== kubeconfig path ==="
+                    echo "${KUBECONFIG}"
                     test -f "${KUBECONFIG}"
+
+                    echo "=== nodes ==="
                     kubectl get nodes
 
                     echo "=== namespace ==="
@@ -243,6 +270,7 @@ PY
             }
             steps {
                 sh '''
+                    echo "=== Kubernetes resources ==="
                     kubectl get pods,svc,ingress -n "${K8S_NAMESPACE}"
 
                     echo "=== live backend image ==="
@@ -252,6 +280,12 @@ PY
                     echo "=== live cockpit image ==="
                     kubectl get deployment/soria-cockpit -n "${K8S_NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}'
                     echo
+
+                    echo "=== validate live backend image tag ==="
+                    test "$(kubectl get deployment/soria-backend -n "${K8S_NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "${BACKEND_IMAGE}:${GIT_SHA}"
+
+                    echo "=== validate live cockpit image tag ==="
+                    test "$(kubectl get deployment/soria-cockpit -n "${K8S_NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}')" = "${COCKPIT_IMAGE}:${GIT_SHA}"
                 '''
             }
         }
@@ -262,7 +296,10 @@ PY
             }
             steps {
                 sh '''
+                    echo "=== public frontend validation ==="
                     curl -k -f -I --retry 5 --retry-delay 5 --retry-connrefused "${PUBLIC_HOST}/"
+
+                    echo "=== public backend health validation ==="
                     curl -k -fsS --retry 5 --retry-delay 5 --retry-connrefused "${PUBLIC_HOST}/api/v1/health"
                 '''
             }
@@ -286,9 +323,11 @@ PY
                 rm -f "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" || true
             '''
         }
+
         failure {
             echo "Pipeline failed."
         }
+
         success {
             echo "Pipeline completed successfully."
         }
