@@ -167,11 +167,11 @@ pipeline {
                     echo "${KUBECONFIG}"
                     test -f "${KUBECONFIG}"
 
-                    echo "=== nodes ==="
-                    kubectl get nodes
+                    echo "=== namespace-scoped access check ==="
+                    kubectl get pods -n "${K8S_NAMESPACE}" >/dev/null
 
-                    echo "=== namespace ==="
-                    kubectl get ns "${K8S_NAMESPACE}"
+                    echo "=== namespace resources ==="
+                    kubectl get pods,svc,ingress -n "${K8S_NAMESPACE}" || true
 
                     echo "=== required secrets ==="
                     kubectl get secret soria-secrets -n "${K8S_NAMESPACE}"
