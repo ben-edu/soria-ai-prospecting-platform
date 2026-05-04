@@ -67,6 +67,7 @@ pipeline {
                     docker run --rm \
                       --user "$(id -u):$(id -g)" \
                       -e HOME=/tmp \
+                      -e UV_LINK_MODE=copy \
                       -v "$PWD/backend:/work" \
                       -w /work \
                       python:3.12-slim \
@@ -78,24 +79,6 @@ pipeline {
                         uv run ruff check .
                       '
                 '''
-            }
-        }
-
-        stage('Docker login to Harbor') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'harbor-robot-devops-project-harbor',
-                    usernameVariable: 'HARBOR_USERNAME',
-                    passwordVariable: 'HARBOR_PASSWORD'
-                )]) {
-                    sh '''
-                        set +x
-                        echo "${HARBOR_PASSWORD}" | docker login "${REGISTRY}" \
-                          -u "${HARBOR_USERNAME}" \
-                          --password-stdin
-                        set -x
-                    '''
-                }
             }
         }
 
@@ -112,7 +95,9 @@ pipeline {
 
         stage('Push backend image') {
             steps {
-                sh 'docker push "${BACKEND_IMAGE}:${GIT_SHA}"'
+                sh '''
+                    docker push "${BACKEND_IMAGE}:${GIT_SHA}"
+                '''
             }
         }
 
@@ -130,7 +115,9 @@ pipeline {
 
         stage('Push cockpit image') {
             steps {
-                sh 'docker push "${COCKPIT_IMAGE}:${GIT_SHA}"'
+                sh '''
+                    docker push "${COCKPIT_IMAGE}:${GIT_SHA}"
+                '''
             }
         }
 
@@ -220,7 +207,9 @@ PY
                 branch 'main'
             }
             steps {
-                sh 'kubectl rollout status deployment/soria-postgres -n "${K8S_NAMESPACE}" --timeout=180s'
+                sh '''
+                    kubectl rollout status deployment/soria-postgres -n "${K8S_NAMESPACE}" --timeout=180s
+                '''
             }
         }
 
@@ -294,7 +283,6 @@ PY
     post {
         always {
             sh '''
-                docker logout "${REGISTRY}" || true
                 rm -f "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" || true
             '''
         }
