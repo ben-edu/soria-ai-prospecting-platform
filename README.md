@@ -110,6 +110,15 @@ uv run alembic current
 uv run python -m app.scripts.seed_initial_data
 ```
 
+### MessageDraft Workflow
+
+Message drafts follow a controlled human-validation lifecycle:
+
+- **draft** &rarr; submit-review &rarr; **needs_review** &rarr; approve &rarr; **approved** &rarr; mark-sent-manually &rarr; **sent_manually**
+- **rejected** &rarr; submit-review &rarr; **needs_review** (re-submit after revision)
+
+Endpoints: `GET/POST /api/v1/message-drafts`, `GET/PATCH /api/v1/message-drafts/{id}`, workflow actions via `/submit-review`, `/approve`, `/reject`, `/mark-sent-manually`.
+
 ### API Health
 
 ```http
