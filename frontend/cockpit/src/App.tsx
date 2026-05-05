@@ -37,6 +37,17 @@ import {
   AcademyResourceEdit,
   AcademyResourceShow,
 } from "./resources/academyResources";
+import {
+  ComplianceEventList,
+  ComplianceEventCreate,
+  ComplianceEventShow,
+} from "./resources/complianceEvents";
+import {
+  FollowUpList,
+  FollowUpCreate,
+  FollowUpEdit,
+  FollowUpShow,
+} from "./resources/followUps";
 
 export const App = () => (
   <Admin
@@ -85,6 +96,19 @@ export const App = () => (
       create={MessageDraftCreate}
       edit={MessageDraftEdit}
       show={MessageDraftShow}
+    />
+    <Resource
+      name="follow-ups"
+      list={FollowUpList}
+      create={FollowUpCreate}
+      edit={FollowUpEdit}
+      show={FollowUpShow}
+    />
+    <Resource
+      name="compliance-events"
+      list={ComplianceEventList}
+      create={ComplianceEventCreate}
+      show={ComplianceEventShow}
     />
   </Admin>
 );
