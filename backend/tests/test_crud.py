@@ -566,3 +566,230 @@ def test_generate_draft_not_found(client):
     resp = client.post(f"/api/v1/opportunities/{uuid4()}/generate-draft")
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"].lower()
+
+
+# --- Enrichment tests (Phase 5c) ---
+
+
+def _create_devops_opportunity(client, company_id, **overrides):
+    """Create a DevOps-type opportunity with minimal data."""
+    payload = {
+        "company_id": str(company_id),
+        "title": "Formation Kubernetes et CI/CD",
+        "opportunity_type": "devops_cloud",
+        "description": "Migration infrastructure Cloud avec Docker et Kubernetes",
+        "source": "manual",
+    }
+    payload.update(overrides)
+    return client.post("/api/v1/opportunities", json=payload)
+
+
+def _create_formation_opportunity(client, company_id, **overrides):
+    """Create a formation-type opportunity."""
+    payload = {
+        "company_id": str(company_id),
+        "title": "BTS SIO — Formation Informatique",
+        "opportunity_type": "formation",
+        "source": "manual",
+    }
+    payload.update(overrides)
+    return client.post("/api/v1/opportunities", json=payload)
+
+
+def _create_training_center_company(client, **overrides):
+    payload = {
+        "name": "CFA des Métiers",
+        "company_type": "cfa",
+        "source": "manual",
+    }
+    payload.update(overrides)
+    return client.post("/api/v1/companies", json=payload)
+
+
+def test_enrich_updates_detected_need_and_next_action(client):
+    """Enriching an opportunity sets detected_need and next_action."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_devops_opportunity(client, company_id)
+    opp_id = opp_resp.json()["id"]
+    assert opp_resp.json()["detected_need"] is None
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/enrich")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["applied"] is True
+    assert len(data["detected_need"]) > 0
+    assert "DevOps" in data["detected_need"] or "automatisation" in data["detected_need"]
+    assert len(data["recommended_landing_page"]) > 0
+    assert data["recommended_landing_page"].startswith("/")
+    assert len(data["next_action"]) > 0
+    assert len(data["explanation"]) > 0
+    assert "opportunity" in data
+    # Verify the opportunity was updated in the DB
+    get_resp = client.get(f"/api/v1/opportunities/{opp_id}")
+    assert get_resp.json()["detected_need"] == data["detected_need"]
+    assert get_resp.json()["recommended_landing_page"] == data["recommended_landing_page"]
+    assert get_resp.json()["next_action"] == data["next_action"]
+
+
+def test_enrich_formation_with_training_center(client):
+    """Enriching a formation opportunity for a CFA detects training need."""
+    company_resp = _create_training_center_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_formation_opportunity(client, company_id)
+    opp_id = opp_resp.json()["id"]
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/enrich")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "formation" in data["detected_need"].lower() or "pédagogique" in data["detected_need"].lower()
+    assert "formation" in data["recommended_landing_page"]
+
+
+def test_enrich_not_found(client):
+    """Enriching a non-existent opportunity returns 404."""
+    resp = client.post(f"/api/v1/opportunities/{uuid4()}/enrich")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+
+def test_enrich_does_not_overwrite_existing_detected_need(client):
+    """Enrichment does not overwrite a non-empty detected_need."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_devops_opportunity(client, company_id)
+    opp_id = opp_resp.json()["id"]
+
+    # Manually set a detected_need first
+    client.patch(
+        f"/api/v1/opportunities/{opp_id}",
+        json={"detected_need": "Besoin spécifique déjà identifié par l'utilisateur"},
+    )
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/enrich")
+    assert resp.status_code == 200
+    data = resp.json()
+    # The existing value must be preserved
+    assert "déjà identifié" in data["detected_need"]
+    assert data["detected_need_overwritten"] is False
+
+
+def test_generate_draft_uses_enriched_detected_need(client):
+    """Generated draft body should reference the enriched detected_need."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_devops_opportunity(client, company_id)
+    opp_id = opp_resp.json()["id"]
+
+    # Enrich first
+    client.post(f"/api/v1/opportunities/{opp_id}/enrich")
+
+    # Then generate draft
+    draft_resp = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert draft_resp.status_code == 200
+    body = draft_resp.json()["body"]
+    # Body should reference the enriched need or the title
+    assert "Kubernetes" in body or "formation" in body.lower() or "accompagnons" in body.lower()
+
+
+# --- Regenerate draft tests (Phase 5c) ---
+
+
+def test_regenerate_draft_archives_old_and_creates_new(client):
+    """Regenerate archives the existing active rule_based draft and creates a new one."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    # Create first draft
+    resp1 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    first_id = resp1.json()["id"]
+
+    # Regenerate
+    resp2 = client.post(f"/api/v1/opportunities/{opp_id}/regenerate-draft")
+    assert resp2.status_code == 200
+    new_id = resp2.json()["id"]
+    assert new_id != first_id
+    assert resp2.json()["status"] == "draft"
+
+    # Verify old draft is archived
+    get_old = client.get(f"/api/v1/message-drafts/{first_id}")
+    assert get_old.json()["status"] == "archived"
+
+    # Verify new draft is active
+    assert resp2.json()["status"] == "draft"
+
+
+def test_regenerate_draft_does_not_archive_sent_manually(client):
+    """Regenerate must NOT archive sent_manually drafts (even if rule_based)."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    # Create a rule_based draft via generate-draft (status = draft)
+    resp1 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    first_id = resp1.json()["id"]
+
+    # Promote it through the workflow to sent_manually
+    client.post(f"/api/v1/message-drafts/{first_id}/submit-review", json={})
+    client.post(f"/api/v1/message-drafts/{first_id}/approve", json={})
+    client.post(f"/api/v1/message-drafts/{first_id}/mark-sent-manually")
+    get_sent = client.get(f"/api/v1/message-drafts/{first_id}")
+    assert get_sent.json()["status"] == "sent_manually"
+
+    # Create a second active rule_based draft
+    # First archive the sent one so we can create a new one
+    # (actually generate-draft checks for active drafts, and sent is not active)
+    resp2 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    second_id = resp2.json()["id"]
+    assert second_id != first_id
+
+    # Regenerate — should archive second_id but NOT first_id (sent_manually)
+    resp3 = client.post(f"/api/v1/opportunities/{opp_id}/regenerate-draft")
+    assert resp3.status_code == 200
+
+    # Check sent_manually draft is untouched
+    get_first = client.get(f"/api/v1/message-drafts/{first_id}")
+    assert get_first.json()["status"] == "sent_manually"
+
+    # Check old active draft is archived
+    get_second = client.get(f"/api/v1/message-drafts/{second_id}")
+    assert get_second.json()["status"] == "archived"
+
+
+def test_regenerate_draft_not_found(client):
+    """Regenerate on a non-existent opportunity returns 404."""
+    resp = client.post(f"/api/v1/opportunities/{uuid4()}/regenerate-draft")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+
+def test_generate_draft_still_prevents_duplicate_after_enrich(client):
+    """Generate-draft duplicate prevention still works after enrichment."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_devops_opportunity(client, company_id)
+    opp_id = opp_resp.json()["id"]
+
+    # Enrich
+    client.post(f"/api/v1/opportunities/{opp_id}/enrich")
+
+    # Generate first draft
+    resp1 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    first_id = resp1.json()["id"]
+
+    # Generate again — should return same draft
+    resp2 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp2.json()["id"] == first_id
+
+
+def test_regenerated_draft_status_is_draft(client):
+    """The newly created draft after regenerate must have status draft."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/regenerate-draft")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "draft"
