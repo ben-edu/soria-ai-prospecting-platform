@@ -505,7 +505,7 @@ def test_generate_draft_creates_message_draft(client):
     _, _, opp_id = _setup_company_contact_opportunity(client)
 
     resp = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     data = resp.json()
     assert data["opportunity_id"] == opp_id
     assert data["status"] == "draft"
@@ -522,8 +522,43 @@ def test_generate_draft_remains_draft(client):
     _, _, opp_id = _setup_company_contact_opportunity(client)
 
     resp = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert resp.json()["status"] == "draft"
+
+
+def test_generate_draft_does_not_create_duplicate(client):
+    """Second generate-draft call returns the existing active rule_based draft."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    resp1 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp1.status_code == 200
+    first_id = resp1.json()["id"]
+
+    resp2 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp2.status_code == 200
+    assert resp2.json()["id"] == first_id
+    assert resp2.json()["status"] == "draft"
+
+    # Verify only one draft exists for this opportunity
+    drafts_resp = client.get(f"/api/v1/message-drafts?opportunity_id={opp_id}")
+    assert drafts_resp.json()["total"] == 1
+
+
+def test_generate_draft_allow_new_after_archive(client):
+    """After archiving a rule_based draft, generate-draft creates a new one."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    # Create first draft
+    resp1 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    first_id = resp1.json()["id"]
+
+    # Archive it
+    client.post(f"/api/v1/message-drafts/{first_id}/archive")
+
+    # Generate again — should create a new draft
+    resp2 = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp2.status_code == 200
+    assert resp2.json()["id"] != first_id
 
 
 def test_generate_draft_not_found(client):

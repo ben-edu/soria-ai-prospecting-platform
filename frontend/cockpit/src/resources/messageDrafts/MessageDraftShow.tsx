@@ -51,6 +51,11 @@ const WorkflowActions = () => {
       action: "mark-sent-manually",
       allowed: ["approved"],
     },
+    {
+      label: "Archive",
+      action: "archive",
+      allowed: ["draft", "needs_review", "rejected", "approved"],
+    },
   ];
 
   const visible = actions.filter((a) => a.allowed.includes(record.status));

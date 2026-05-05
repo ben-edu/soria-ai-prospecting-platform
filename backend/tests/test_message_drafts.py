@@ -432,6 +432,82 @@ def test_list_message_drafts_search(client):
     assert resp.json()["total"] == 1
 
 
+def test_archive_draft_from_draft(client):
+    """Archive a draft from draft status."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    create_resp = _create_message_draft(client, opp_id)
+    draft_id = create_resp.json()["id"]
+
+    resp = client.post(f"/api/v1/message-drafts/{draft_id}/archive")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "archived"
+    assert data["id"] == draft_id
+    assert data["approved_at"] is None
+    assert data["sent_at"] is None
+
+
+def test_archive_missing_draft_returns_404(client):
+    """Archive a non-existent draft returns 404."""
+    resp = client.post(f"/api/v1/message-drafts/{uuid4()}/archive")
+    assert resp.status_code == 404
+
+
+def test_archive_sent_manually_draft_returns_400(client):
+    """Archive a sent_manually draft returns 400."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    create_resp = _create_message_draft(client, opp_id, status="needs_review")
+    draft_id = create_resp.json()["id"]
+
+    client.post(f"/api/v1/message-drafts/{draft_id}/approve", json={})
+    client.post(f"/api/v1/message-drafts/{draft_id}/mark-sent-manually")
+
+    resp = client.post(f"/api/v1/message-drafts/{draft_id}/archive")
+    assert resp.status_code == 400
+    assert "sent" in resp.json()["detail"].lower()
+
+
+def test_archive_already_archived_returns_400(client):
+    """Archive an already archived draft returns 400."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    create_resp = _create_message_draft(client, opp_id)
+    draft_id = create_resp.json()["id"]
+
+    client.post(f"/api/v1/message-drafts/{draft_id}/archive")
+
+    resp = client.post(f"/api/v1/message-drafts/{draft_id}/archive")
+    assert resp.status_code == 400
+    assert "already archived" in resp.json()["detail"].lower()
+
+
+def test_archive_draft_preserves_approved_at_and_sent_at(client):
+    """Archiving an approved draft preserves approved_at and sent_at."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    create_resp = _create_message_draft(client, opp_id, status="needs_review")
+    draft_id = create_resp.json()["id"]
+
+    client.post(f"/api/v1/message-drafts/{draft_id}/approve", json={})
+    client.post(f"/api/v1/message-drafts/{draft_id}/mark-sent-manually")
+
+    # sent_manually should be rejected, so test with approved only
+    # Create a fresh approved draft
+    create_resp2 = _create_message_draft(client, opp_id, status="needs_review")
+    draft_id2 = create_resp2.json()["id"]
+
+    approve_resp = client.post(f"/api/v1/message-drafts/{draft_id2}/approve", json={})
+    approved_at = approve_resp.json()["approved_at"]
+
+    archive_resp = client.post(f"/api/v1/message-drafts/{draft_id2}/archive")
+    assert archive_resp.status_code == 200
+    assert archive_resp.json()["status"] == "archived"
+    assert archive_resp.json()["approved_at"] == approved_at
+    assert archive_resp.json()["sent_at"] is None
+
+
 def test_health_endpoint_still_works(client):
     """Health endpoint still works."""
     resp = client.get("/api/v1/health")

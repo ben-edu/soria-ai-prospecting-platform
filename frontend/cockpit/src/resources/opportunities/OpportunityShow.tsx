@@ -72,7 +72,9 @@ const OpportunityActions = () => {
         notify(detail, { type: "error" });
         return;
       }
-      notify("Draft generated successfully", { type: "success" });
+      notify("Draft generated or existing active draft reused", {
+        type: "success",
+      });
       refresh();
     } catch (e: unknown) {
       notify(e instanceof Error ? e.message : "Request failed", {
