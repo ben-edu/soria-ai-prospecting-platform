@@ -25,6 +25,18 @@ import {
   MessageDraftEdit,
   MessageDraftShow,
 } from "./resources/messageDrafts";
+import {
+  OfferList,
+  OfferCreate,
+  OfferEdit,
+  OfferShow,
+} from "./resources/offers";
+import {
+  AcademyResourceList,
+  AcademyResourceCreate,
+  AcademyResourceEdit,
+  AcademyResourceShow,
+} from "./resources/academyResources";
 
 export const App = () => (
   <Admin
@@ -52,6 +64,20 @@ export const App = () => (
       create={OpportunityCreate}
       edit={OpportunityEdit}
       show={OpportunityShow}
+    />
+    <Resource
+      name="offers"
+      list={OfferList}
+      create={OfferCreate}
+      edit={OfferEdit}
+      show={OfferShow}
+    />
+    <Resource
+      name="academy-resources"
+      list={AcademyResourceList}
+      create={AcademyResourceCreate}
+      edit={AcademyResourceEdit}
+      show={AcademyResourceShow}
     />
     <Resource
       name="message-drafts"
