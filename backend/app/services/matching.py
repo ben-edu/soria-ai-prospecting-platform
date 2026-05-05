@@ -14,6 +14,59 @@ def _normalize_text(value: Optional[str]) -> str:
     return (value or "").lower().strip()
 
 
+def _offer_domain(offer: Offer) -> str:
+    """Classify an offer's domain based on its slug and name.
+
+    Returns one of: devops_automation, formation_it_devops, cybersecurity_soc,
+    iam_sso, cloud_infrastructure, other.
+    """
+    slug = _normalize_text(offer.slug)
+    name = _normalize_text(offer.name)
+    combined = f"{slug} {name}"
+
+    # Formation + devops (check first to avoid confusing with devops_automation)
+    if "formation" in combined and "devops" in combined:
+        return "formation_it_devops"
+    # DevOps automation
+    if "devops" in combined and "automation" in combined:
+        return "devops_automation"
+    # Cybersecurity / SOC
+    if "cyber" in combined or "soc" in combined:
+        return "cybersecurity_soc"
+    # IAM / SSO
+    if "iam" in combined or "sso" in combined:
+        return "iam_sso"
+    # Cloud infrastructure
+    if "cloud" in combined or "infrastructure" in combined:
+        return "cloud_infrastructure"
+    return "other"
+
+
+def _is_training_context(company_type: Optional[CompanyType], text: str) -> bool:
+    """Check if the opportunity is in a training/education context."""
+    training_company_types = {
+        CompanyType.training_center,
+        CompanyType.school,
+        CompanyType.cfa,
+        CompanyType.university,
+    }
+    if company_type in training_company_types:
+        return True
+    training_words = [
+        "formation", "bts", "sio", "formateur", "pédagogique", "pedagogique",
+        "cours", "atelier", "training", "apprentissage",
+    ]
+    return any(w in text for w in training_words)
+
+
+def _opportunity_text(opportunity: Opportunity) -> str:
+    """Combine opportunity title, description and detected_need."""
+    title = _normalize_text(opportunity.title)
+    desc = _normalize_text(opportunity.description)
+    need = _normalize_text(opportunity.detected_need)
+    return f"{title} {desc} {need}"
+
+
 def _text_score(text: str, keywords: list[str]) -> int:
     """Count how many distinct keywords appear in text."""
     return sum(1 for kw in keywords if kw in text)
@@ -121,6 +174,28 @@ def _score_offer_for_opportunity(
     elif opp_type == OpportunityType.iam_sso:
         if any(ind in offer_text for ind in iam_indicators):
             score += 10
+
+    # Domain preference — strong tie-breaker based on offer identity
+    offer_domain = _offer_domain(offer)
+    is_training = _is_training_context(company_type, combined)
+
+    if opp_type == OpportunityType.devops_cloud:
+        if offer_domain == "devops_automation":
+            score += 15
+        elif offer_domain == "cloud_infrastructure":
+            if any(ind in combined for ind in cloud_indicators):
+                score += 10
+        elif offer_domain == "formation_it_devops" and not is_training:
+            score -= 20
+    elif opp_type == OpportunityType.formation:
+        if offer_domain == "formation_it_devops":
+            score += 15
+    elif opp_type in (OpportunityType.cybersecurity_soc, OpportunityType.monitoring):
+        if offer_domain == "cybersecurity_soc":
+            score += 15
+    elif opp_type == OpportunityType.iam_sso:
+        if offer_domain == "iam_sso":
+            score += 15
 
     # Company type boost
     if company_type in (

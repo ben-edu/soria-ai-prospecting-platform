@@ -662,3 +662,76 @@ def test_match_assets_formation_opportunity(client):
 
     # Should find some academy resource
     assert data["academy_resource"] is not None or data["offer"] is not None
+
+
+def test_match_assets_devops_engineer_prefers_devops_automation(client):
+    """DevOps engineer + devops_cloud + it_company → devops-automation-offer."""
+    _setup_match_prerequisites(client)
+
+    company_resp = _create_company(client, name="DevOps Corp", company_type="it_company")
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_opportunity(
+        client,
+        company_id,
+        title="DevOps engineer",
+        opportunity_type="devops_cloud",
+    )
+    opp_id = opp_resp.json()["id"]
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/match-assets")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["offer"] is not None
+    assert data["offer"]["slug"] == "devops-automation-offer", (
+        f"Expected devops-automation-offer, got {data['offer']['slug']}"
+    )
+
+
+def test_match_assets_formation_with_training_center_prefers_formation(client):
+    """BTS SIO + formation + training_center → formation-it-devops-offer."""
+    _setup_match_prerequisites(client)
+
+    company_resp = _create_company(client, name="CFA Training", company_type="training_center")
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_opportunity(
+        client,
+        company_id,
+        title="BTS SIO Formation",
+        opportunity_type="formation",
+    )
+    opp_id = opp_resp.json()["id"]
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/match-assets")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["offer"] is not None
+    assert data["offer"]["slug"] == "formation-it-devops-offer", (
+        f"Expected formation-it-devops-offer, got {data['offer']['slug']}"
+    )
+
+
+def test_match_assets_devops_cloud_not_formation_offer(client):
+    """Plain DevOps/cloud opportunity must NOT select Formation IT & DevOps."""
+    _setup_match_prerequisites(client)
+
+    company_resp = _create_company(client, name="CloudCorp", company_type="it_company")
+    company_id = company_resp.json()["id"]
+
+    opp_resp = _create_opportunity(
+        client,
+        company_id,
+        title="Ingénieur Cloud et DevOps",
+        opportunity_type="devops_cloud",
+        description="Infrastructure cloud avec Proxmox et OPNsense",
+    )
+    opp_id = opp_resp.json()["id"]
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/match-assets")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["offer"] is not None
+    assert data["offer"]["slug"] != "formation-it-devops-offer", (
+        "Formation IT & DevOps was selected for a plain DevOps/cloud opportunity"
+    )
