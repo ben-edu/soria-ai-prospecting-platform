@@ -1,0 +1,115 @@
+import {
+  Create,
+  NumberInput,
+  ReferenceInput,
+  required,
+  SelectInput,
+  SimpleForm,
+  TextInput,
+} from "react-admin";
+
+const OPPORTUNITY_TYPE_CHOICES = [
+  { id: "formation", name: "Formation" },
+  { id: "devops_cloud", name: "DevOps / Cloud" },
+  { id: "cybersecurity_soc", name: "Cybersecurity / SOC" },
+  { id: "iam_sso", name: "IAM / SSO" },
+  { id: "monitoring", name: "Monitoring" },
+  { id: "freelance", name: "Freelance" },
+  { id: "job", name: "Job" },
+  { id: "academic", name: "Academic" },
+  { id: "partnership", name: "Partnership" },
+  { id: "academy", name: "Academy" },
+  { id: "other", name: "Other" },
+];
+
+const SOURCE_CHOICES = [
+  { id: "manual", name: "Manual" },
+  { id: "france_travail", name: "France Travail" },
+  { id: "company_website", name: "Company Website" },
+  { id: "linkedin_manual", name: "LinkedIn Manual" },
+  { id: "csv", name: "CSV Import" },
+  { id: "hunter", name: "Hunter" },
+  { id: "dropcontact", name: "Dropcontact" },
+  { id: "soria_website_form", name: "SORIA Website Form" },
+  { id: "academy", name: "Academy" },
+  { id: "openproject", name: "OpenProject" },
+  { id: "other", name: "Other" },
+];
+
+const STATUS_CHOICES = [
+  { id: "new", name: "New" },
+  { id: "to_analyze", name: "To Analyze" },
+  { id: "scored", name: "Scored" },
+  { id: "interesting", name: "Interesting" },
+  { id: "not_relevant", name: "Not Relevant" },
+  { id: "contact_to_find", name: "Contact To Find" },
+  { id: "contact_found", name: "Contact Found" },
+  { id: "draft_needed", name: "Draft Needed" },
+  { id: "draft_ready", name: "Draft Ready" },
+  { id: "waiting_validation", name: "Waiting Validation" },
+  { id: "approved", name: "Approved" },
+  { id: "sent", name: "Sent" },
+  { id: "follow_up_needed", name: "Follow-Up Needed" },
+  { id: "response_received", name: "Response Received" },
+  { id: "meeting_scheduled", name: "Meeting Scheduled" },
+  { id: "converted", name: "Converted" },
+  { id: "lost", name: "Lost" },
+  { id: "closed", name: "Closed" },
+];
+
+const PRIORITY_CHOICES = [
+  { id: "low", name: "Low" },
+  { id: "medium", name: "Medium" },
+  { id: "high", name: "High" },
+  { id: "urgent", name: "Urgent" },
+];
+
+export const OpportunityCreate = () => (
+  <Create>
+    <SimpleForm>
+      <TextInput source="title" validate={required()} fullWidth />
+      <ReferenceInput
+        source="company_id"
+        reference="companies"
+        validate={required()}
+      />
+      <ReferenceInput source="contact_id" reference="contacts" />
+      <SelectInput
+        source="opportunity_type"
+        label="Type"
+        choices={OPPORTUNITY_TYPE_CHOICES}
+        defaultValue="other"
+      />
+      <TextInput source="description" multiline rows={4} fullWidth />
+      <TextInput source="detected_need" multiline rows={3} fullWidth />
+      <SelectInput
+        source="source"
+        choices={SOURCE_CHOICES}
+        defaultValue="manual"
+      />
+      <TextInput source="source_url" label="Source URL" fullWidth />
+      <TextInput source="location" />
+      <TextInput source="language" defaultValue="fr" />
+      <SelectInput
+        source="status"
+        choices={STATUS_CHOICES}
+        defaultValue="new"
+      />
+      <SelectInput
+        source="priority"
+        choices={PRIORITY_CHOICES}
+        defaultValue="medium"
+      />
+      <NumberInput source="score" min={0} max={100} />
+      <TextInput
+        source="recommended_landing_page"
+        label="Recommended Landing Page"
+        fullWidth
+      />
+      <TextInput source="next_action" label="Next Action" fullWidth />
+      <TextInput source="offer_id" label="Offer ID" />
+      <TextInput source="academy_resource_id" label="Academy Resource ID" />
+      <TextInput source="notes" multiline rows={4} fullWidth />
+    </SimpleForm>
+  </Create>
+);
