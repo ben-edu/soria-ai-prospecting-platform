@@ -14,12 +14,14 @@ from app.models.offer import Offer
 from app.models.opportunity import Opportunity
 from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
+    EnrichResponse,
     OpportunityCreate,
     OpportunityListResponse,
     OpportunityRead,
     OpportunityUpdate,
     ScoreResponse,
 )
+from app.services.enrichment import enrich_opportunity
 from app.services.scoring import score_opportunity, suggest_next_action
 
 router = APIRouter()
@@ -239,6 +241,47 @@ def score_opportunity_endpoint(opportunity_id: str, db: Session = Depends(get_db
     )
 
 
+@router.post("/{opportunity_id}/enrich", response_model=EnrichResponse)
+def enrich_opportunity_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Load company if available (should always exist due to FK)
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+
+    # Apply deterministic enrichment
+    result = enrich_opportunity(opportunity, company)
+
+    # Update opportunity fields
+    # detected_need: only overwrite if empty (service already handles this)
+    opportunity.detected_need = result["detected_need"]
+    opportunity.recommended_landing_page = result["recommended_landing_page"]
+    opportunity.next_action = result["next_action"]
+    # Notes are NOT overwritten (user-provided data preserved)
+
+    db.add(opportunity)
+    db.commit()
+    db.refresh(opportunity)
+
+    return EnrichResponse(
+        opportunity=OpportunityRead.model_validate(opportunity),
+        detected_need=result["detected_need"],
+        recommended_landing_page=result["recommended_landing_page"],
+        next_action=result["next_action"],
+        explanation=result["explanation"],
+        applied=result["applied"],
+        detected_need_overwritten=result["detected_need_overwritten"],
+    )
+
+
 @router.post("/{opportunity_id}/generate-draft", response_model=MessageDraftRead)
 def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     try:
@@ -278,7 +321,7 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     if opportunity.contact_id is not None:
         contact = db.get(Contact, opportunity.contact_id)
 
-    # Build a simple template-based draft
+    # Build a richer, more contextual draft
     contact_name = contact.full_name if contact else "Responsable"
     company_name = company.name
 
@@ -287,24 +330,142 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     body_parts = [
         f"Bonjour {contact_name},",
         "",
-        f"Nous avons identifié que {company_name} pourrait être intéressé "
-        f"par notre offre « {opportunity.title} ».",
+        f"Nous accompagnons les organisations comme {company_name} "
+        f"dans le domaine « {opportunity.title} ».",
     ]
-
-    if opportunity.description:
-        body_parts.append(f"Description : {opportunity.description}")
 
     if opportunity.detected_need:
         body_parts.append(
-            f"Nous avons noté le besoin suivant : {opportunity.detected_need}."
+            f"Au regard de vos besoins, nous pensons pouvoir vous apporter "
+            f"une réponse concrète : {opportunity.detected_need}"
+        )
+
+    if opportunity.description:
+        body_parts.append(
+            f"Pour rappel, le contexte : {opportunity.description}"
+        )
+
+    if opportunity.recommended_landing_page:
+        body_parts.append(
+            f"Pour en savoir plus, vous pouvez consulter notre page dédiée : "
+            f"{opportunity.recommended_landing_page}."
         )
 
     body_parts.extend([
         "",
-        "N'hésitez pas à me contacter pour échanger sur ce sujet et voir "
-        "comment nous pourrons collaborer.",
+        "Je me tiens à votre disposition pour un échange de quelques minutes "
+        "afin de préciser votre besoin et vous présenter comment nous "
+        "pourrions collaborer.",
         "",
-        "Cordialement,",
+        "Bien cordialement,",
+        "L'équipe SORIA",
+    ])
+
+    body = "\n".join(body_parts)
+
+    draft = MessageDraft(
+        opportunity_id=uid,
+        contact_id=opportunity.contact_id,
+        message_type=MessageType.prospecting_email,
+        language=opportunity.language,
+        subject=subject,
+        body=body,
+        status="draft",
+        generated_by="rule_based",
+    )
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+@router.post("/{opportunity_id}/regenerate-draft", response_model=MessageDraftRead)
+def regenerate_draft(opportunity_id: str, db: Session = Depends(get_db)):
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Archive existing active rule_based drafts (draft, needs_review, approved)
+    # Do NOT archive sent_manually or sent_by_system drafts
+    active_statuses = [
+        MessageStatus.draft,
+        MessageStatus.needs_review,
+        MessageStatus.approved,
+    ]
+    existing_drafts = db.exec(
+        select(MessageDraft).where(
+            MessageDraft.opportunity_id == uid,
+            MessageDraft.generated_by == "rule_based",
+            MessageDraft.status.in_(active_statuses),
+        )
+    ).all()
+
+    now = None
+    for draft in existing_drafts:
+        from datetime import datetime, timezone
+
+        if now is None:
+            now = datetime.now(timezone.utc)
+        draft.status = MessageStatus.archived
+        db.add(draft)
+
+    if existing_drafts:
+        db.flush()
+
+    # Load company for context
+    company = db.get(Company, opportunity.company_id)
+    if not company:
+        raise HTTPException(status_code=400, detail="Referenced company not found")
+
+    # Load contact if set
+    contact = None
+    if opportunity.contact_id is not None:
+        contact = db.get(Contact, opportunity.contact_id)
+
+    # Build a new draft (same template as generate-draft)
+    contact_name = contact.full_name if contact else "Responsable"
+    company_name = company.name
+
+    subject = f"Proposition d'accompagnement — {company_name}"
+
+    body_parts = [
+        f"Bonjour {contact_name},",
+        "",
+        f"Nous accompagnons les organisations comme {company_name} "
+        f"dans le domaine « {opportunity.title} ».",
+    ]
+
+    if opportunity.detected_need:
+        body_parts.append(
+            f"Au regard de vos besoins, nous pensons pouvoir vous apporter "
+            f"une réponse concrète : {opportunity.detected_need}"
+        )
+
+    if opportunity.description:
+        body_parts.append(
+            f"Pour rappel, le contexte : {opportunity.description}"
+        )
+
+    if opportunity.recommended_landing_page:
+        body_parts.append(
+            f"Pour en savoir plus, vous pouvez consulter notre page dédiée : "
+            f"{opportunity.recommended_landing_page}."
+        )
+
+    body_parts.extend([
+        "",
+        "Je me tiens à votre disposition pour un échange de quelques minutes "
+        "afin de préciser votre besoin et vous présenter comment nous "
+        "pourrions collaborer.",
+        "",
+        "Bien cordialement,",
         "L'équipe SORIA",
     ])
 

@@ -23,6 +23,36 @@ const OpportunityActions = () => {
 
   if (isLoading || !record) return null;
 
+  const handleEnrich = async () => {
+    setLoading("enrich");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/enrich`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      notify("Opportunity enriched successfully", { type: "success" });
+      refresh();
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const handleScore = async () => {
     setLoading("score");
     try {
@@ -85,8 +115,48 @@ const OpportunityActions = () => {
     }
   };
 
+  const handleRegenerateDraft = async () => {
+    setLoading("regenerate");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/regenerate-draft`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      notify("New draft generated (previous active draft archived)", {
+        type: "success",
+      });
+      refresh();
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+      <Button
+        variant="contained"
+        color="info"
+        onClick={handleEnrich}
+        disabled={loading !== null}
+      >
+        {loading === "enrich" ? "Enriching..." : "Enrich opportunity"}
+      </Button>
       <Button
         variant="contained"
         color="primary"
@@ -102,6 +172,14 @@ const OpportunityActions = () => {
         disabled={loading !== null}
       >
         {loading === "draft" ? "Generating..." : "Generate draft"}
+      </Button>
+      <Button
+        variant="outlined"
+        color="warning"
+        onClick={handleRegenerateDraft}
+        disabled={loading !== null}
+      >
+        {loading === "regenerate" ? "Regenerating..." : "Regenerate draft"}
       </Button>
     </Stack>
   );

@@ -106,6 +106,18 @@ class ScoreResponse(BaseModel):
     opportunity: OpportunityRead
 
 
+class EnrichResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    opportunity: OpportunityRead
+    detected_need: str
+    recommended_landing_page: str
+    next_action: str
+    explanation: str
+    applied: bool
+    detected_need_overwritten: bool
+
+
 class OpportunityListResponse(BaseModel):
     items: list[OpportunityRead]
     total: int
