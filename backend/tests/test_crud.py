@@ -123,6 +123,17 @@ def _create_contact(client, company_id, **overrides):
     return client.post("/api/v1/contacts", json=payload)
 
 
+def _create_opportunity(client, company_id, **overrides):
+    payload = {
+        "company_id": str(company_id),
+        "title": "Formation DevOps",
+        "opportunity_type": "devops_cloud",
+        "source": "manual",
+    }
+    payload.update(overrides)
+    return client.post("/api/v1/opportunities", json=payload)
+
+
 def test_create_contact(client):
     company_resp = _create_company(client)
     company_id = company_resp.json()["id"]
@@ -439,3 +450,84 @@ def test_health_endpoint_still_works(client):
     data = resp.json()
     assert data["status"] == "ok"
     assert data["app"] == "SORIA AI Prospecting Platform"
+
+
+# --- Scoring & Draft generation tests (Phase 5a) ---
+
+
+def _setup_company_contact_opportunity(client):
+    """Create a company, contact, and opportunity linked together."""
+    company_resp = _create_company(client)
+    assert company_resp.status_code == 201
+    company_id = company_resp.json()["id"]
+
+    contact_resp = _create_contact(client, company_id)
+    assert contact_resp.status_code == 201
+    contact_id = contact_resp.json()["id"]
+
+    opp_resp = _create_opportunity(client, company_id, contact_id=contact_id)
+    assert opp_resp.status_code == 201
+    opp_id = opp_resp.json()["id"]
+
+    return company_id, contact_id, opp_id
+
+
+def test_score_opportunity(client):
+    """Score an existing opportunity and verify the response."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/score")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "score" in data
+    assert isinstance(data["score"], int)
+    assert 0 <= data["score"] <= 100
+    assert "explanation" in data
+    assert isinstance(data["explanation"], str)
+    assert len(data["explanation"]) > 0
+    assert "breakdown" in data
+    assert isinstance(data["breakdown"], dict)
+    assert "opportunity" in data
+    assert data["opportunity"]["id"] == opp_id
+    # Opportunity should have score set now
+    assert data["opportunity"]["score"] == data["score"]
+
+
+def test_score_opportunity_not_found(client):
+    """Scoring a non-existent opportunity returns 404."""
+    resp = client.post(f"/api/v1/opportunities/{uuid4()}/score")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+
+def test_generate_draft_creates_message_draft(client):
+    """Generate a draft for an opportunity and verify it creates a MessageDraft."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["opportunity_id"] == opp_id
+    assert data["status"] == "draft"
+    assert data["generated_by"] == "rule_based"
+    assert data["message_type"] == "prospecting_email"
+    assert data["body"] is not None
+    assert len(data["body"]) > 0
+    assert "id" in data
+    assert "created_at" in data
+
+
+def test_generate_draft_remains_draft(client):
+    """Generated draft must stay in draft status (not auto-submitted)."""
+    _, _, opp_id = _setup_company_contact_opportunity(client)
+
+    resp = client.post(f"/api/v1/opportunities/{opp_id}/generate-draft")
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "draft"
+
+
+def test_generate_draft_not_found(client):
+    """Draft generation for a non-existent opportunity returns 404."""
+    resp = client.post(f"/api/v1/opportunities/{uuid4()}/generate-draft")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
