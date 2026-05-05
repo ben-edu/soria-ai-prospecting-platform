@@ -53,6 +53,36 @@ const OpportunityActions = () => {
     }
   };
 
+  const handleMatchAssets = async () => {
+    setLoading("match");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/match-assets`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      notify("Offer/resources matched successfully", { type: "success" });
+      refresh();
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const handleScore = async () => {
     setLoading("score");
     try {
@@ -159,6 +189,14 @@ const OpportunityActions = () => {
       </Button>
       <Button
         variant="contained"
+        color="success"
+        onClick={handleMatchAssets}
+        disabled={loading !== null}
+      >
+        {loading === "match" ? "Matching..." : "Match offer/resources"}
+      </Button>
+      <Button
+        variant="contained"
         color="primary"
         onClick={handleScore}
         disabled={loading !== null}
@@ -204,8 +242,18 @@ export const OpportunityShow = () => (
         link="show"
         emptyText="N/A"
       />
-      <TextField source="offer_id" emptyText="N/A" />
-      <TextField source="academy_resource_id" emptyText="N/A" />
+      <ReferenceField
+        source="offer_id"
+        reference="offers"
+        link="show"
+        emptyText="N/A"
+      />
+      <ReferenceField
+        source="academy_resource_id"
+        reference="academy-resources"
+        link="show"
+        emptyText="N/A"
+      />
       <TextField source="title" />
       <TextField source="opportunity_type" />
       <TextField source="description" />

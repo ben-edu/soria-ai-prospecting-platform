@@ -123,3 +123,38 @@ class OpportunityListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class MatchAssetOffer(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    slug: str
+    short_description: Optional[str] = None
+    landing_page_url: Optional[str] = None
+    is_active: bool
+
+
+class MatchAssetResource(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    slug: str
+    short_description: Optional[str] = None
+    resource_type: str
+    level: str
+    public_url: Optional[str] = None
+    academy_url: Optional[str] = None
+    is_published: bool
+
+
+class MatchAssetsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    opportunity: OpportunityRead
+    offer: Optional[MatchAssetOffer] = None
+    academy_resource: Optional[MatchAssetResource] = None
+    explanation: str
+    applied: bool

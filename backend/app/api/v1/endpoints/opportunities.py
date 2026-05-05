@@ -15,6 +15,7 @@ from app.models.opportunity import Opportunity
 from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
     EnrichResponse,
+    MatchAssetsResponse,
     OpportunityCreate,
     OpportunityListResponse,
     OpportunityRead,
@@ -22,6 +23,7 @@ from app.schemas.opportunity import (
     ScoreResponse,
 )
 from app.services.enrichment import enrich_opportunity
+from app.services.matching import match_assets
 from app.services.scoring import score_opportunity, suggest_next_action
 
 router = APIRouter()
@@ -282,6 +284,96 @@ def enrich_opportunity_endpoint(opportunity_id: str, db: Session = Depends(get_d
     )
 
 
+def _build_draft_body(
+    opportunity: Opportunity,
+    company: Company,
+    contact: Optional[Contact],
+    matched_offer: Optional[Offer],
+    matched_resource: Optional[AcademyResource],
+) -> tuple[str, str]:
+    """Build the subject and body for a draft, including match context if available."""
+    contact_name = contact.full_name if contact else "Responsable"
+    company_name = company.name
+
+    subject = f"Proposition d'accompagnement — {company_name}"
+
+    body_parts = [
+        f"Bonjour {contact_name},",
+        "",
+        f"Nous accompagnons les organisations comme {company_name} "
+        f"dans le domaine « {opportunity.title} ».",
+    ]
+
+    if opportunity.detected_need:
+        body_parts.append(
+            f"Au regard de vos besoins, nous pensons pouvoir vous apporter "
+            f"une réponse concrète : {opportunity.detected_need}"
+        )
+
+    # Include matched offer context
+    if matched_offer:
+        offer_line = (
+            f"Notre offre « {matched_offer.name} » correspond "
+            f"particulièrement à votre situation."
+        )
+        if matched_offer.short_description:
+            offer_line += f" {matched_offer.short_description}"
+        body_parts.append(offer_line)
+
+    # Include matched academy resource context
+    if matched_resource:
+        body_parts.append(
+            f"Nous mettons également à disposition notre ressource "
+            f"« {matched_resource.title} » pour approfondir le sujet."
+        )
+
+    if opportunity.description:
+        body_parts.append(
+            f"Pour rappel, le contexte : {opportunity.description}"
+        )
+
+    if opportunity.recommended_landing_page:
+        landing_label = "Pour en savoir plus"
+        if matched_offer and matched_offer.name:
+            landing_label += f" sur {matched_offer.name}"
+        body_parts.append(
+            f"{landing_label}, vous pouvez consulter notre page dédiée : "
+            f"{opportunity.recommended_landing_page}."
+        )
+    elif matched_offer and matched_offer.landing_page_url:
+        body_parts.append(
+            f"Pour en savoir plus sur {matched_offer.name}, consultez : "
+            f"{matched_offer.landing_page_url}."
+        )
+
+    body_parts.extend([
+        "",
+        "Je me tiens à votre disposition pour un échange de quelques minutes "
+        "afin de préciser votre besoin et vous présenter comment nous "
+        "pourrions collaborer.",
+        "",
+        "Bien cordialement,",
+        "L'équipe SORIA",
+    ])
+
+    body = "\n".join(body_parts)
+    return subject, body
+
+
+def _load_match_context(
+    opportunity: Opportunity,
+    db: Session,
+) -> tuple[Optional[Offer], Optional[AcademyResource]]:
+    """Load matched offer and academy resource for an opportunity."""
+    matched_offer = db.get(Offer, opportunity.offer_id) if opportunity.offer_id else None
+    matched_resource = (
+        db.get(AcademyResource, opportunity.academy_resource_id)
+        if opportunity.academy_resource_id
+        else None
+    )
+    return matched_offer, matched_resource
+
+
 @router.post("/{opportunity_id}/generate-draft", response_model=MessageDraftRead)
 def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     try:
@@ -321,47 +413,10 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     if opportunity.contact_id is not None:
         contact = db.get(Contact, opportunity.contact_id)
 
-    # Build a richer, more contextual draft
-    contact_name = contact.full_name if contact else "Responsable"
-    company_name = company.name
+    # Load matched offer and academy resource for context
+    matched_offer, matched_resource = _load_match_context(opportunity, db)
 
-    subject = f"Proposition d'accompagnement — {company_name}"
-
-    body_parts = [
-        f"Bonjour {contact_name},",
-        "",
-        f"Nous accompagnons les organisations comme {company_name} "
-        f"dans le domaine « {opportunity.title} ».",
-    ]
-
-    if opportunity.detected_need:
-        body_parts.append(
-            f"Au regard de vos besoins, nous pensons pouvoir vous apporter "
-            f"une réponse concrète : {opportunity.detected_need}"
-        )
-
-    if opportunity.description:
-        body_parts.append(
-            f"Pour rappel, le contexte : {opportunity.description}"
-        )
-
-    if opportunity.recommended_landing_page:
-        body_parts.append(
-            f"Pour en savoir plus, vous pouvez consulter notre page dédiée : "
-            f"{opportunity.recommended_landing_page}."
-        )
-
-    body_parts.extend([
-        "",
-        "Je me tiens à votre disposition pour un échange de quelques minutes "
-        "afin de préciser votre besoin et vous présenter comment nous "
-        "pourrions collaborer.",
-        "",
-        "Bien cordialement,",
-        "L'équipe SORIA",
-    ])
-
-    body = "\n".join(body_parts)
+    subject, body = _build_draft_body(opportunity, company, contact, matched_offer, matched_resource)
 
     draft = MessageDraft(
         opportunity_id=uid,
@@ -429,47 +484,10 @@ def regenerate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     if opportunity.contact_id is not None:
         contact = db.get(Contact, opportunity.contact_id)
 
-    # Build a new draft (same template as generate-draft)
-    contact_name = contact.full_name if contact else "Responsable"
-    company_name = company.name
+    # Load matched offer and academy resource for context
+    matched_offer, matched_resource = _load_match_context(opportunity, db)
 
-    subject = f"Proposition d'accompagnement — {company_name}"
-
-    body_parts = [
-        f"Bonjour {contact_name},",
-        "",
-        f"Nous accompagnons les organisations comme {company_name} "
-        f"dans le domaine « {opportunity.title} ».",
-    ]
-
-    if opportunity.detected_need:
-        body_parts.append(
-            f"Au regard de vos besoins, nous pensons pouvoir vous apporter "
-            f"une réponse concrète : {opportunity.detected_need}"
-        )
-
-    if opportunity.description:
-        body_parts.append(
-            f"Pour rappel, le contexte : {opportunity.description}"
-        )
-
-    if opportunity.recommended_landing_page:
-        body_parts.append(
-            f"Pour en savoir plus, vous pouvez consulter notre page dédiée : "
-            f"{opportunity.recommended_landing_page}."
-        )
-
-    body_parts.extend([
-        "",
-        "Je me tiens à votre disposition pour un échange de quelques minutes "
-        "afin de préciser votre besoin et vous présenter comment nous "
-        "pourrions collaborer.",
-        "",
-        "Bien cordialement,",
-        "L'équipe SORIA",
-    ])
-
-    body = "\n".join(body_parts)
+    subject, body = _build_draft_body(opportunity, company, contact, matched_offer, matched_resource)
 
     draft = MessageDraft(
         opportunity_id=uid,
@@ -485,3 +503,99 @@ def regenerate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(draft)
     return draft
+
+
+@router.post("/{opportunity_id}/match-assets", response_model=MatchAssetsResponse)
+def match_assets_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Load company for context
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+
+    # Load all offers and academy resources
+    all_offers = db.exec(select(Offer)).all()
+    all_resources = db.exec(select(AcademyResource)).all()
+
+    result = match_assets(opportunity, company, all_offers, all_resources)
+
+    # Update opportunity with matched assets
+    if result["offer"] is not None:
+        opportunity.offer_id = result["offer"].id
+    if result["academy_resource"] is not None:
+        opportunity.academy_resource_id = result["academy_resource"].id
+
+    # Update recommended_landing_page from matched offer if available
+    matched_offer = result["offer"]
+    if matched_offer and matched_offer.landing_page_url:
+        opportunity.recommended_landing_page = matched_offer.landing_page_url
+
+    # Generate a useful next_action based on match
+    if result["offer"] and result["academy_resource"]:
+        opportunity.next_action = (
+            f"Activer le suivi — offre « {result['offer'].name} » et ressource "
+            f"« {result['academy_resource'].title} » identifiées."
+        )
+    elif result["offer"]:
+        opportunity.next_action = (
+            f"Activer le suivi — offre « {result['offer'].name} » identifiée."
+        )
+    elif result["academy_resource"]:
+        opportunity.next_action = (
+            f"Activer le suivi — ressource « {result['academy_resource'].title} » identifiée."
+        )
+
+    db.add(opportunity)
+    db.commit()
+    db.refresh(opportunity)
+
+    # Build response
+    match_offer = result["offer"]
+    match_resource = result["academy_resource"]
+
+    return MatchAssetsResponse(
+        opportunity=OpportunityRead.model_validate(opportunity),
+        offer=offer_to_match_dict(match_offer),
+        academy_resource=resource_to_match_dict(match_resource),
+        explanation=result["explanation"],
+        applied=match_offer is not None or match_resource is not None,
+    )
+
+
+def offer_to_match_dict(offer: Optional[Offer]) -> Optional[dict]:
+    """Convert an Offer to a lightweight dict for the response."""
+    if offer is None:
+        return None
+    return {
+        "id": offer.id,
+        "name": offer.name,
+        "slug": offer.slug,
+        "short_description": offer.short_description,
+        "landing_page_url": offer.landing_page_url,
+        "is_active": offer.is_active,
+    }
+
+
+def resource_to_match_dict(resource: Optional[AcademyResource]) -> Optional[dict]:
+    """Convert an AcademyResource to a lightweight dict for the response."""
+    if resource is None:
+        return None
+    return {
+        "id": resource.id,
+        "title": resource.title,
+        "slug": resource.slug,
+        "short_description": resource.short_description,
+        "resource_type": resource.resource_type.value,
+        "level": resource.level.value,
+        "public_url": resource.public_url,
+        "academy_url": resource.academy_url,
+        "is_published": resource.is_published,
+    }
