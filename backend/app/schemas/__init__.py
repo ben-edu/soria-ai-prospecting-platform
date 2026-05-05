@@ -6,7 +6,18 @@ from app.schemas.academy_resource import (
 )
 from app.schemas.common import Message, PaginatedResponse, TimestampMixin, UUIDMixin
 from app.schemas.company import CompanyCreate, CompanyListResponse, CompanyRead, CompanyUpdate
+from app.schemas.compliance_event import (
+    ComplianceEventCreate,
+    ComplianceEventListResponse,
+    ComplianceEventRead,
+)
 from app.schemas.contact import ContactCreate, ContactListResponse, ContactRead, ContactUpdate
+from app.schemas.follow_up import (
+    FollowUpCreate,
+    FollowUpListResponse,
+    FollowUpRead,
+    FollowUpUpdate,
+)
 from app.schemas.message_draft import MessageDraftCreate, MessageDraftListResponse, MessageDraftRead, MessageDraftUpdate
 from app.schemas.offer import OfferCreate, OfferListResponse, OfferRead, OfferUpdate
 from app.schemas.opportunity import (
@@ -49,4 +60,11 @@ __all__ = [
     "MessageDraftRead",
     "MessageDraftUpdate",
     "MessageDraftListResponse",
+    "FollowUpCreate",
+    "FollowUpRead",
+    "FollowUpUpdate",
+    "FollowUpListResponse",
+    "ComplianceEventCreate",
+    "ComplianceEventRead",
+    "ComplianceEventListResponse",
 ]

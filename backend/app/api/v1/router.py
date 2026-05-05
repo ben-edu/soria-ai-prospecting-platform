@@ -4,7 +4,9 @@ from app.api.v1.endpoints import (
     academy_categories,
     academy_resources,
     companies,
+    compliance_events,
     contacts,
+    follow_ups,
     health,
     messages,
     offers,
@@ -23,3 +25,5 @@ router.include_router(offers.router, prefix="/offers", tags=["offers"])
 router.include_router(academy_categories.router, prefix="/academy-categories", tags=["academy"])
 router.include_router(academy_resources.router, prefix="/academy-resources", tags=["academy"])
 router.include_router(messages.router, prefix="/message-drafts", tags=["messages"])
+router.include_router(follow_ups.router, prefix="/follow-ups", tags=["follow-ups"])
+router.include_router(compliance_events.router, prefix="/compliance-events", tags=["compliance-events"])
