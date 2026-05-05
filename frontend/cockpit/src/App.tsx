@@ -7,6 +7,24 @@ import {
   CompanyEdit,
   CompanyShow,
 } from "./resources/companies";
+import {
+  ContactList,
+  ContactCreate,
+  ContactEdit,
+  ContactShow,
+} from "./resources/contacts";
+import {
+  OpportunityList,
+  OpportunityCreate,
+  OpportunityEdit,
+  OpportunityShow,
+} from "./resources/opportunities";
+import {
+  MessageDraftList,
+  MessageDraftCreate,
+  MessageDraftEdit,
+  MessageDraftShow,
+} from "./resources/messageDrafts";
 
 export const App = () => (
   <Admin
@@ -20,6 +38,27 @@ export const App = () => (
       create={CompanyCreate}
       edit={CompanyEdit}
       show={CompanyShow}
+    />
+    <Resource
+      name="contacts"
+      list={ContactList}
+      create={ContactCreate}
+      edit={ContactEdit}
+      show={ContactShow}
+    />
+    <Resource
+      name="opportunities"
+      list={OpportunityList}
+      create={OpportunityCreate}
+      edit={OpportunityEdit}
+      show={OpportunityShow}
+    />
+    <Resource
+      name="message-drafts"
+      list={MessageDraftList}
+      create={MessageDraftCreate}
+      edit={MessageDraftEdit}
+      show={MessageDraftShow}
     />
   </Admin>
 );
