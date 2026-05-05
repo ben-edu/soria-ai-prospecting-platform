@@ -97,6 +97,15 @@ class OpportunityRead(BaseModel):
     updated_at: datetime
 
 
+class ScoreResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    score: int
+    explanation: str
+    breakdown: dict[str, int]
+    opportunity: OpportunityRead
+
+
 class OpportunityListResponse(BaseModel):
     items: list[OpportunityRead]
     total: int

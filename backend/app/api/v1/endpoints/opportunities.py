@@ -11,12 +11,15 @@ from app.models.company import Company
 from app.models.contact import Contact
 from app.models.offer import Offer
 from app.models.opportunity import Opportunity
+from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
     OpportunityCreate,
     OpportunityListResponse,
     OpportunityRead,
     OpportunityUpdate,
+    ScoreResponse,
 )
+from app.services.scoring import score_opportunity, suggest_next_action
 
 router = APIRouter()
 
@@ -199,3 +202,111 @@ def update_opportunity(
     db.commit()
     db.refresh(opportunity)
     return opportunity
+
+
+@router.post("/{opportunity_id}/score", response_model=ScoreResponse)
+def score_opportunity_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    result = score_opportunity(opportunity)
+    opportunity.score = result["score"]
+    opportunity.next_action = suggest_next_action(result["score"])
+
+    # Advance status to scored only if it's still new
+    if opportunity.status.value == "new":
+        from app.core.enums import OpportunityStatus
+        opportunity.status = OpportunityStatus.scored
+
+    db.add(opportunity)
+    db.commit()
+    db.refresh(opportunity)
+
+    return ScoreResponse(
+        score=result["score"],
+        explanation=result["explanation"],
+        breakdown=result["breakdown"],
+        opportunity=OpportunityRead.model_validate(opportunity),
+    )
+
+
+@router.post("/{opportunity_id}/generate-draft", response_model=MessageDraftRead, status_code=201)
+def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Load company for context
+    company = db.get(Company, opportunity.company_id)
+    if not company:
+        raise HTTPException(status_code=400, detail="Referenced company not found")
+
+    # Load contact if set
+    contact = None
+    if opportunity.contact_id is not None:
+        contact = db.get(Contact, opportunity.contact_id)
+
+    # Build a simple template-based draft
+    contact_name = contact.full_name if contact else "Responsable"
+    company_name = company.name
+
+    subject = f"Proposition d'accompagnement — {company_name}"
+
+    body_parts = [
+        f"Bonjour {contact_name},",
+        "",
+        f"Nous avons identifié que {company_name} pourrait être intéressé "
+        f"par notre offre « {opportunity.title} ».",
+    ]
+
+    if opportunity.description:
+        body_parts.append(f"Description : {opportunity.description}")
+
+    if opportunity.detected_need:
+        body_parts.append(
+            f"Nous avons noté le besoin suivant : {opportunity.detected_need}."
+        )
+
+    body_parts.extend([
+        "",
+        "N'hésitez pas à me contacter pour échanger sur ce sujet et voir "
+        "comment nous pourrons collaborer.",
+        "",
+        "Cordialement,",
+        "L'équipe SORIA",
+    ])
+
+    body = "\n".join(body_parts)
+
+    from app.core.enums import MessageType
+    from app.models.message_draft import MessageDraft
+
+    draft = MessageDraft(
+        opportunity_id=uid,
+        contact_id=opportunity.contact_id,
+        message_type=MessageType.prospecting_email,
+        language=opportunity.language,
+        subject=subject,
+        body=body,
+        status="draft",
+        generated_by="rule_based",
+    )
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return draft
