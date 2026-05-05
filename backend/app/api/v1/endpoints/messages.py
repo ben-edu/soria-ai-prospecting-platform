@@ -268,3 +268,31 @@ def mark_draft_sent_manually(
     db.commit()
     db.refresh(draft)
     return draft
+
+
+@router.post("/{message_draft_id}/archive", response_model=MessageDraftRead)
+def archive_message_draft(
+    message_draft_id: str,
+    db: Session = Depends(get_db),
+):
+    draft = _get_draft_or_404(message_draft_id, db)
+
+    if draft.status == MessageStatus.sent_manually:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot archive a draft that has been sent manually",
+        )
+
+    if draft.status == MessageStatus.archived:
+        raise HTTPException(
+            status_code=400,
+            detail="Message draft is already archived",
+        )
+
+    draft.status = MessageStatus.archived
+    # Preserve approved_at and sent_at unchanged
+
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return draft

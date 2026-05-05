@@ -5,10 +5,11 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.api.deps import get_db
-from app.core.enums import OpportunityPriority, OpportunityStatus, OpportunityType
+from app.core.enums import MessageStatus, MessageType, OpportunityPriority, OpportunityStatus, OpportunityType
 from app.models.academy_resource import AcademyResource
 from app.models.company import Company
 from app.models.contact import Contact
+from app.models.message_draft import MessageDraft
 from app.models.offer import Offer
 from app.models.opportunity import Opportunity
 from app.schemas.message_draft import MessageDraftRead
@@ -238,7 +239,7 @@ def score_opportunity_endpoint(opportunity_id: str, db: Session = Depends(get_db
     )
 
 
-@router.post("/{opportunity_id}/generate-draft", response_model=MessageDraftRead, status_code=201)
+@router.post("/{opportunity_id}/generate-draft", response_model=MessageDraftRead)
 def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     try:
         import uuid
@@ -250,6 +251,22 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     opportunity = db.get(Opportunity, uid)
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Check for existing active rule_based draft (duplicate prevention)
+    active_statuses = [
+        MessageStatus.draft,
+        MessageStatus.needs_review,
+        MessageStatus.approved,
+    ]
+    existing = db.exec(
+        select(MessageDraft).where(
+            MessageDraft.opportunity_id == uid,
+            MessageDraft.generated_by == "rule_based",
+            MessageDraft.status.in_(active_statuses),
+        )
+    ).first()
+    if existing is not None:
+        return existing
 
     # Load company for context
     company = db.get(Company, opportunity.company_id)
@@ -292,9 +309,6 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     ])
 
     body = "\n".join(body_parts)
-
-    from app.core.enums import MessageType
-    from app.models.message_draft import MessageDraft
 
     draft = MessageDraft(
         opportunity_id=uid,
