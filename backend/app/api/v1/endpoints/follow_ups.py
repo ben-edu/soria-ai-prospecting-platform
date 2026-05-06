@@ -16,6 +16,10 @@ from app.schemas.follow_up import (
     FollowUpRead,
     FollowUpUpdate,
 )
+from app.services.workflow_events import (
+    sync_opportunity_after_follow_up_cancelled,
+    sync_opportunity_after_follow_up_done,
+)
 
 router = APIRouter()
 
@@ -161,6 +165,12 @@ def mark_follow_up_done(follow_up_id: str, db: Session = Depends(get_db)):
 
     follow_up.status = FollowUpStatus.done
     db.add(follow_up)
+
+    opportunity = db.get(Opportunity, follow_up.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_after_follow_up_done(opportunity)
+        db.add(opportunity)
+
     db.commit()
     db.refresh(follow_up)
     return follow_up
@@ -178,6 +188,12 @@ def cancel_follow_up(follow_up_id: str, db: Session = Depends(get_db)):
 
     follow_up.status = FollowUpStatus.cancelled
     db.add(follow_up)
+
+    opportunity = db.get(Opportunity, follow_up.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_after_follow_up_cancelled(opportunity)
+        db.add(opportunity)
+
     db.commit()
     db.refresh(follow_up)
     return follow_up
