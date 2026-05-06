@@ -35,6 +35,12 @@ const OpportunityActions = () => {
     unknown
   > | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [aiPreviewData, setAiPreviewData] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [aiPreviewLoading, setAiPreviewLoading] = useState(false);
 
   if (isLoading || !record) return null;
 
@@ -246,6 +252,124 @@ const OpportunityActions = () => {
     }
   };
 
+  const handleAiPreview = async () => {
+    setAiPreviewLoading(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/ai-draft-preview`,
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      const data = await res.json();
+      setAiPreviewData(data);
+      setAiPreviewOpen(true);
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setAiPreviewLoading(false);
+    }
+  };
+
+  const handleCloseAiPreview = () => {
+    setAiPreviewOpen(false);
+  };
+
+  const handleCopyAiSubject = async () => {
+    if (!aiPreviewData?.subject) return;
+    try {
+      await navigator.clipboard.writeText(String(aiPreviewData.subject));
+      notify("Subject copied to clipboard", { type: "success" });
+    } catch {
+      notify("Failed to copy subject", { type: "error" });
+    }
+  };
+
+  const handleCopyAiBody = async () => {
+    if (!aiPreviewData?.body) return;
+    try {
+      await navigator.clipboard.writeText(String(aiPreviewData.body));
+      notify("Body copied to clipboard", { type: "success" });
+    } catch {
+      notify("Failed to copy body", { type: "error" });
+    }
+  };
+
+  const handleGenerateAiDraft = async () => {
+    setLoading("ai-draft");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/generate-ai-draft`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      notify("AI draft generated or existing active AI draft reused", {
+        type: "success",
+      });
+      refresh();
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRegenerateAiDraft = async () => {
+    setLoading("regenerate-ai");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/regenerate-ai-draft`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      notify("New AI draft generated (previous active AI draft archived)", {
+        type: "success",
+      });
+      refresh();
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -297,6 +421,32 @@ const OpportunityActions = () => {
         >
           {previewLoading ? "Loading..." : "OpenProject preview"}
         </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleAiPreview}
+          disabled={loading !== null || aiPreviewLoading}
+        >
+          {aiPreviewLoading ? "Loading..." : "AI draft preview"}
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleGenerateAiDraft}
+          disabled={loading !== null}
+        >
+          {loading === "ai-draft" ? "Generating..." : "Generate AI draft"}
+        </Button>
+        <Button
+          variant="outlined"
+          color="warning"
+          onClick={handleRegenerateAiDraft}
+          disabled={loading !== null}
+        >
+          {loading === "regenerate-ai"
+            ? "Regenerating..."
+            : "Regenerate AI draft"}
+        </Button>
       </Stack>
       <Dialog
         open={previewOpen}
@@ -344,6 +494,64 @@ const OpportunityActions = () => {
             Copy description
           </Button>
           <Button onClick={handleClosePreview}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={aiPreviewOpen}
+        onClose={handleCloseAiPreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>AI Draft Preview</DialogTitle>
+        <DialogContent dividers>
+          {aiPreviewData && (
+            <>
+              <Typography variant="subtitle2" gutterBottom>
+                Provider: {String(aiPreviewData.provider ?? "")}
+                {" | "}Model: {String(aiPreviewData.model_name ?? "")}
+                {" | "}Prompt: {String(aiPreviewData.prompt_version ?? "")}
+              </Typography>
+              <MuiTextField
+                label="Subject"
+                value={String(aiPreviewData.subject ?? "")}
+                fullWidth
+                margin="normal"
+                size="small"
+                InputProps={{ readOnly: true }}
+              />
+              <MuiTextField
+                label="Body"
+                value={String(aiPreviewData.body ?? "")}
+                fullWidth
+                multiline
+                minRows={10}
+                maxRows={25}
+                margin="normal"
+                size="small"
+                InputProps={{ readOnly: true }}
+                variant="outlined"
+              />
+              <MuiTextField
+                label="Safety note"
+                value={String(aiPreviewData.safety_note ?? "")}
+                fullWidth
+                margin="normal"
+                size="small"
+                InputProps={{ readOnly: true }}
+                variant="outlined"
+                color="warning"
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCopyAiSubject} color="primary">
+            Copy subject
+          </Button>
+          <Button onClick={handleCopyAiBody} color="primary">
+            Copy body
+          </Button>
+          <Button onClick={handleCloseAiPreview}>Close</Button>
         </DialogActions>
       </Dialog>
     </>

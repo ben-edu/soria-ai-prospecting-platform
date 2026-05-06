@@ -173,3 +173,16 @@ class OpenProjectWorkPackagePreviewResponse(BaseModel):
     subject: str
     description: str
     copy_hint: str
+
+
+class AiDraftPreviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    opportunity: OpportunityRead
+    provider: str
+    model_name: str
+    prompt_version: str
+    subject: str
+    body: str
+    safety_note: str
+    copy_hint: str
