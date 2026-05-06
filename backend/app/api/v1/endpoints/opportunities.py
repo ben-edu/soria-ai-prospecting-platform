@@ -703,6 +703,7 @@ def get_ai_draft_preview(opportunity_id: str, db: Session = Depends(get_db)):
         provider=result["provider"],
         model_name=result["model_name"],
         prompt_version=result["prompt_version"],
+        prompt_profile=result.get("prompt_profile", "prospecting_fr_v1"),
         subject=result["subject"],
         body=result["body"],
         safety_note=result["safety_note"],
