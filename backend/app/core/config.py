@@ -16,5 +16,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me"
     LOG_LEVEL: str = "INFO"
 
+    # AI draft generation defaults
+    AI_DRAFT_PROVIDER: str = "mock_ai"
+    AI_DRAFT_PROMPT_PROFILE: str = "prospecting_fr_v1"
+    AI_DRAFT_MODEL_NAME: str = "mock-soria-v1"
+    AI_DRAFT_PROMPT_VERSION: str = "ai-draft-v1"
+
 
 settings = Settings()

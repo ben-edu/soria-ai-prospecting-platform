@@ -182,6 +182,7 @@ class AiDraftPreviewResponse(BaseModel):
     provider: str
     model_name: str
     prompt_version: str
+    prompt_profile: str = "prospecting_fr_v1"
     subject: str
     body: str
     safety_note: str
