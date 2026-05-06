@@ -123,14 +123,13 @@ def create_compliance_event(data: ComplianceEventCreate, db: Session = Depends(g
 
     # If both contact_id and opportunity_id are provided, they must belong to the same company
     if data.contact_id is not None and data.opportunity_id is not None:
-        if data.contact_id is not None and data.opportunity_id is not None:
-            contact = db.get(Contact, data.contact_id)
-            opportunity = db.get(Opportunity, data.opportunity_id)
-            if contact and opportunity and contact.company_id != opportunity.company_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Contact and opportunity must belong to the same company",
-                )
+        contact = db.get(Contact, data.contact_id)
+        opportunity = db.get(Opportunity, data.opportunity_id)
+        if contact and opportunity and contact.company_id != opportunity.company_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Contact and opportunity must belong to the same company",
+            )
 
     # Validate reason_for_contact is required for certain event types
     if data.event_type in REASON_REQUIRED_TYPES and not data.reason_for_contact:
