@@ -101,6 +101,10 @@ export const OpportunityEdit = () => (
       <TextInput source="next_action" label="Next Action" fullWidth />
       <TextInput source="offer_id" label="Offer ID" />
       <TextInput source="academy_resource_id" label="Academy Resource ID" />
+      <TextInput
+        source="openproject_work_package_id"
+        label="OpenProject Work Package ID"
+      />
       <TextInput source="notes" multiline rows={4} fullWidth />
     </SimpleForm>
   </Edit>

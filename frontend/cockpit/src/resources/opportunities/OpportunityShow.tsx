@@ -269,6 +269,7 @@ export const OpportunityShow = () => (
       <TextField source="recommended_landing_page" />
       <TextField source="next_action" />
       <TextField source="notes" />
+      <TextField source="openproject_work_package_id" emptyText="N/A" />
       <DateField source="created_at" showTime />
       <DateField source="updated_at" showTime />
     </SimpleShowLayout>

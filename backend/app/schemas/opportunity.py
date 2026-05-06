@@ -32,6 +32,7 @@ class OpportunityCreate(BaseModel):
     recommended_landing_page: Optional[str] = None
     next_action: Optional[str] = None
     notes: Optional[str] = None
+    openproject_work_package_id: Optional[str] = None
 
     @field_validator("score")
     @classmethod
@@ -61,6 +62,7 @@ class OpportunityUpdate(BaseModel):
     recommended_landing_page: Optional[str] = None
     next_action: Optional[str] = None
     notes: Optional[str] = None
+    openproject_work_package_id: Optional[str] = None
 
     @field_validator("score")
     @classmethod
@@ -93,6 +95,7 @@ class OpportunityRead(BaseModel):
     recommended_landing_page: Optional[str] = None
     next_action: Optional[str] = None
     notes: Optional[str] = None
+    openproject_work_package_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
