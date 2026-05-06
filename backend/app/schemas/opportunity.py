@@ -161,3 +161,15 @@ class MatchAssetsResponse(BaseModel):
     academy_resource: Optional[MatchAssetResource] = None
     explanation: str
     applied: bool
+
+
+class OpenProjectWorkPackagePreviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    opportunity: OpportunityRead
+    suggested_type: str
+    suggested_status: str
+    suggested_priority: str
+    subject: str
+    description: str
+    copy_hint: str

@@ -16,6 +16,7 @@ from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
     EnrichResponse,
     MatchAssetsResponse,
+    OpenProjectWorkPackagePreviewResponse,
     OpportunityCreate,
     OpportunityListResponse,
     OpportunityRead,
@@ -24,6 +25,7 @@ from app.schemas.opportunity import (
 )
 from app.services.enrichment import enrich_opportunity
 from app.services.matching import match_assets
+from app.services.openproject_preview import build_openproject_work_package_preview
 from app.services.scoring import score_opportunity, suggest_next_action
 from app.services.workflow_events import (
     create_message_generated_compliance_event,
@@ -607,3 +609,53 @@ def resource_to_match_dict(resource: Optional[AcademyResource]) -> Optional[dict
         "academy_url": resource.academy_url,
         "is_published": resource.is_published,
     }
+
+
+@router.get(
+    "/{opportunity_id}/openproject-preview",
+    response_model=OpenProjectWorkPackagePreviewResponse,
+)
+def get_openproject_preview(opportunity_id: str, db: Session = Depends(get_db)):
+    """Build a read-only OpenProject work package preview for an opportunity.
+
+    Returns suggested type, status, priority, subject, and a Markdown
+    description in French. Does NOT mutate the opportunity.
+    """
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Load related entities if available
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+    contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
+    offer = db.get(Offer, opportunity.offer_id) if opportunity.offer_id else None
+    academy_resource = (
+        db.get(AcademyResource, opportunity.academy_resource_id)
+        if opportunity.academy_resource_id
+        else None
+    )
+
+    preview = build_openproject_work_package_preview(
+        opportunity=opportunity,
+        company=company,
+        contact=contact,
+        offer=offer,
+        academy_resource=academy_resource,
+    )
+
+    return OpenProjectWorkPackagePreviewResponse(
+        opportunity=OpportunityRead.model_validate(opportunity),
+        suggested_type=preview["suggested_type"],
+        suggested_status=preview["suggested_status"],
+        suggested_priority=preview["suggested_priority"],
+        subject=preview["subject"],
+        description=preview["description"],
+        copy_hint="Copy the subject and description above into a new OpenProject work package.",
+    )

@@ -12,7 +12,16 @@ import {
   useRefresh,
   useShowContext,
 } from "react-admin";
-import { Button, Stack } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField as MuiTextField,
+  Typography,
+} from "@mui/material";
 import { API_BASE_URL } from "../../config";
 
 const OpportunityActions = () => {
@@ -20,6 +29,12 @@ const OpportunityActions = () => {
   const notify = useNotify();
   const refresh = useRefresh();
   const [loading, setLoading] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   if (isLoading || !record) return null;
 
@@ -177,49 +192,161 @@ const OpportunityActions = () => {
     }
   };
 
+  const handleOpenPreview = async () => {
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/opportunities/${record.id}/openproject-preview`,
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) detail = parsed.detail;
+        } catch {
+          /* ignore */
+        }
+        notify(detail, { type: "error" });
+        return;
+      }
+      const data = await res.json();
+      setPreviewData(data);
+      setPreviewOpen(true);
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : "Request failed", {
+        type: "error",
+      });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+  };
+
+  const handleCopySubject = async () => {
+    if (!previewData?.subject) return;
+    try {
+      await navigator.clipboard.writeText(String(previewData.subject));
+      notify("Subject copied to clipboard", { type: "success" });
+    } catch {
+      notify("Failed to copy subject", { type: "error" });
+    }
+  };
+
+  const handleCopyDescription = async () => {
+    if (!previewData?.description) return;
+    try {
+      await navigator.clipboard.writeText(String(previewData.description));
+      notify("Description copied to clipboard", { type: "success" });
+    } catch {
+      notify("Failed to copy description", { type: "error" });
+    }
+  };
+
   return (
-    <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-      <Button
-        variant="contained"
-        color="info"
-        onClick={handleEnrich}
-        disabled={loading !== null}
+    <>
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Button
+          variant="contained"
+          color="info"
+          onClick={handleEnrich}
+          disabled={loading !== null}
+        >
+          {loading === "enrich" ? "Enriching..." : "Enrich opportunity"}
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleMatchAssets}
+          disabled={loading !== null}
+        >
+          {loading === "match" ? "Matching..." : "Match offer/resources"}
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleScore}
+          disabled={loading !== null}
+        >
+          {loading === "score" ? "Scoring..." : "Score opportunity"}
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleGenerateDraft}
+          disabled={loading !== null}
+        >
+          {loading === "draft" ? "Generating..." : "Generate draft"}
+        </Button>
+        <Button
+          variant="outlined"
+          color="warning"
+          onClick={handleRegenerateDraft}
+          disabled={loading !== null}
+        >
+          {loading === "regenerate" ? "Regenerating..." : "Regenerate draft"}
+        </Button>
+        <Button
+          variant="contained"
+          color="info"
+          onClick={handleOpenPreview}
+          disabled={loading !== null || previewLoading}
+        >
+          {previewLoading ? "Loading..." : "OpenProject preview"}
+        </Button>
+      </Stack>
+      <Dialog
+        open={previewOpen}
+        onClose={handleClosePreview}
+        maxWidth="md"
+        fullWidth
       >
-        {loading === "enrich" ? "Enriching..." : "Enrich opportunity"}
-      </Button>
-      <Button
-        variant="contained"
-        color="success"
-        onClick={handleMatchAssets}
-        disabled={loading !== null}
-      >
-        {loading === "match" ? "Matching..." : "Match offer/resources"}
-      </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleScore}
-        disabled={loading !== null}
-      >
-        {loading === "score" ? "Scoring..." : "Score opportunity"}
-      </Button>
-      <Button
-        variant="contained"
-        color="secondary"
-        onClick={handleGenerateDraft}
-        disabled={loading !== null}
-      >
-        {loading === "draft" ? "Generating..." : "Generate draft"}
-      </Button>
-      <Button
-        variant="outlined"
-        color="warning"
-        onClick={handleRegenerateDraft}
-        disabled={loading !== null}
-      >
-        {loading === "regenerate" ? "Regenerating..." : "Regenerate draft"}
-      </Button>
-    </Stack>
+        <DialogTitle>OpenProject Work Package Preview</DialogTitle>
+        <DialogContent dividers>
+          {previewData && (
+            <>
+              <Typography variant="subtitle2" gutterBottom>
+                Type: {String(previewData.suggested_type ?? "")}
+                {" | "}Status: {String(previewData.suggested_status ?? "")}
+                {" | "}Priority: {String(previewData.suggested_priority ?? "")}
+              </Typography>
+              <MuiTextField
+                label="Subject"
+                value={String(previewData.subject ?? "")}
+                fullWidth
+                margin="normal"
+                size="small"
+                InputProps={{ readOnly: true }}
+              />
+              <MuiTextField
+                label="Description (Markdown)"
+                value={String(previewData.description ?? "")}
+                fullWidth
+                multiline
+                minRows={15}
+                maxRows={30}
+                margin="normal"
+                size="small"
+                InputProps={{ readOnly: true }}
+                variant="outlined"
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCopySubject} color="primary">
+            Copy subject
+          </Button>
+          <Button onClick={handleCopyDescription} color="primary">
+            Copy description
+          </Button>
+          <Button onClick={handleClosePreview}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 
