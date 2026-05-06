@@ -8,6 +8,27 @@ no external AI APIs are called.
 from typing import Optional
 
 # -------------------------------------------------------------------
+# Exception hierarchy
+# -------------------------------------------------------------------
+
+
+class AIProviderError(Exception):
+    """Base exception for all AI provider errors."""
+
+
+class UnknownAIProviderError(AIProviderError, ValueError):
+    """Raised when the requested provider is not in the registry."""
+
+
+class AIProviderGenerationError(AIProviderError):
+    """Raised when the provider encounters an unexpected runtime error."""
+
+
+class InvalidAIProviderOutputError(AIProviderError):
+    """Raised when the provider returns invalid or incomplete output."""
+
+
+# -------------------------------------------------------------------
 # Registry
 # -------------------------------------------------------------------
 
@@ -38,12 +59,12 @@ def get_ai_provider(provider_name: str, model_name: Optional[str] = None):
 
     Raises
     ------
-    ValueError
+    UnknownAIProviderError
         If *provider_name* is not in the registry.
     """
     if provider_name not in PROVIDER_REGISTRY:
         available = ", ".join(sorted(PROVIDER_REGISTRY))
-        raise ValueError(
+        raise UnknownAIProviderError(
             f"Unknown AI provider: '{provider_name}'. "
             f"Available providers: [{available}]"
         )
@@ -51,6 +72,22 @@ def get_ai_provider(provider_name: str, model_name: Optional[str] = None):
     if model_name is not None:
         return provider_cls(model_name=model_name)
     return provider_cls()
+
+
+def list_available_ai_providers() -> list[str]:
+    """Return sorted list of registered AI provider names."""
+    return sorted(PROVIDER_REGISTRY)
+
+
+def get_provider_registry_snapshot() -> dict:
+    """Return a diagnostic-friendly snapshot of the provider registry.
+
+    Returns a dict mapping provider name to class qualified name.
+    """
+    return {
+        name: f"{cls.__module__}.{cls.__qualname__}"
+        for name, cls in sorted(PROVIDER_REGISTRY.items())
+    }
 
 
 # -------------------------------------------------------------------
