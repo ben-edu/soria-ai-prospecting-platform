@@ -18,6 +18,12 @@ from app.schemas.message_draft import (
     MessageDraftRead,
     MessageDraftUpdate,
 )
+from app.services.workflow_events import (
+    create_message_approved_compliance_event,
+    create_message_generated_compliance_event,
+    create_message_sent_compliance_event,
+    schedule_follow_up_after_manual_send,
+)
 
 router = APIRouter()
 
@@ -121,6 +127,7 @@ def create_message_draft(data: MessageDraftCreate, db: Session = Depends(get_db)
         prompt_version=data.prompt_version,
     )
     db.add(draft)
+    create_message_generated_compliance_event(db, draft, opportunity=opportunity)
     db.commit()
     db.refresh(draft)
     return draft
@@ -219,6 +226,7 @@ def approve_draft(
         draft.review_notes = data.review_notes
 
     db.add(draft)
+    create_message_approved_compliance_event(db, draft)
     db.commit()
     db.refresh(draft)
     return draft
@@ -265,6 +273,8 @@ def mark_draft_sent_manually(
     draft.sent_at = datetime.now(timezone.utc)
 
     db.add(draft)
+    create_message_sent_compliance_event(db, draft)
+    schedule_follow_up_after_manual_send(db, draft)
     db.commit()
     db.refresh(draft)
     return draft
