@@ -14,6 +14,7 @@ from app.models.offer import Offer
 from app.models.opportunity import Opportunity
 from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
+    AiDraftPreviewResponse,
     EnrichResponse,
     MatchAssetsResponse,
     OpenProjectWorkPackagePreviewResponse,
@@ -23,6 +24,7 @@ from app.schemas.opportunity import (
     OpportunityUpdate,
     ScoreResponse,
 )
+from app.services.ai_message_generation import generate_ai_draft
 from app.services.enrichment import enrich_opportunity
 from app.services.matching import match_assets
 from app.services.openproject_preview import build_openproject_work_package_preview
@@ -659,3 +661,193 @@ def get_openproject_preview(opportunity_id: str, db: Session = Depends(get_db)):
         description=preview["description"],
         copy_hint="Copy the subject and description above into a new OpenProject work package.",
     )
+
+
+@router.get(
+    "/{opportunity_id}/ai-draft-preview",
+    response_model=AiDraftPreviewResponse,
+)
+def get_ai_draft_preview(opportunity_id: str, db: Session = Depends(get_db)):
+    """Build a read-only AI draft preview for an opportunity.
+
+    Returns the subject, body, provider metadata, and a safety note.
+    Does NOT create a MessageDraft, mutate the opportunity, or create a
+    ComplianceEvent.
+    """
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Load related entities for context
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+    contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
+    matched_offer, matched_resource = _load_match_context(opportunity, db)
+
+    result = generate_ai_draft(
+        opportunity=opportunity,
+        company=company,
+        contact=contact,
+        matched_offer=matched_offer,
+        matched_resource=matched_resource,
+    )
+
+    return AiDraftPreviewResponse(
+        opportunity=OpportunityRead.model_validate(opportunity),
+        provider=result["provider"],
+        model_name=result["model_name"],
+        prompt_version=result["prompt_version"],
+        subject=result["subject"],
+        body=result["body"],
+        safety_note=result["safety_note"],
+        copy_hint="Review the AI-generated draft above, then use 'Generate AI draft' to create a MessageDraft.",
+    )
+
+
+@router.post("/{opportunity_id}/generate-ai-draft", response_model=MessageDraftRead)
+def generate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
+    """Generate an AI-powered MessageDraft for the given opportunity.
+
+    Creates a MessageDraft with generated_by='ai', stores model_name
+    and prompt_version, and syncs the opportunity to draft_ready.
+    Duplicate prevention: if an active AI draft already exists
+    (status in draft, needs_review, approved), returns the existing one
+    instead of creating a new one.
+    """
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Duplicate prevention — return existing active AI draft if one exists
+    active_statuses = [
+        MessageStatus.draft,
+        MessageStatus.needs_review,
+        MessageStatus.approved,
+    ]
+    existing = db.exec(
+        select(MessageDraft).where(
+            MessageDraft.opportunity_id == uid,
+            MessageDraft.generated_by == "ai",
+            MessageDraft.status.in_(active_statuses),
+        )
+    ).first()
+    if existing is not None:
+        return existing
+
+    # Load context for AI generation
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+    contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
+    matched_offer, matched_resource = _load_match_context(opportunity, db)
+
+    result = generate_ai_draft(
+        opportunity=opportunity,
+        company=company,
+        contact=contact,
+        matched_offer=matched_offer,
+        matched_resource=matched_resource,
+    )
+
+    draft = MessageDraft(
+        opportunity_id=uid,
+        contact_id=opportunity.contact_id,
+        message_type=MessageType.prospecting_email,
+        language=opportunity.language,
+        subject=result["subject"],
+        body=result["body"],
+        status="draft",
+        generated_by="ai",
+        model_name=result["model_name"],
+        prompt_version=result["prompt_version"],
+    )
+    db.add(draft)
+    create_message_generated_compliance_event(db, draft, opportunity=opportunity)
+    sync_opportunity_to_draft_ready(opportunity)
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+@router.post("/{opportunity_id}/regenerate-ai-draft", response_model=MessageDraftRead)
+def regenerate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
+    """Archive existing active AI drafts and create a new AI draft.
+
+    Only archives drafts with generated_by='ai' and status in
+    draft, needs_review, approved. Does NOT archive rule_based,
+    sent_manually, or sent_by_system drafts.
+    """
+    try:
+        import uuid
+
+        uid = uuid.UUID(opportunity_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
+
+    opportunity = db.get(Opportunity, uid)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+
+    # Archive existing active AI drafts only
+    active_statuses = [
+        MessageStatus.draft,
+        MessageStatus.needs_review,
+        MessageStatus.approved,
+    ]
+    existing_drafts = db.exec(
+        select(MessageDraft).where(
+            MessageDraft.opportunity_id == uid,
+            MessageDraft.generated_by == "ai",
+            MessageDraft.status.in_(active_statuses),
+        )
+    ).all()
+
+    for draft in existing_drafts:
+        draft.status = MessageStatus.archived
+        db.add(draft)
+
+    if existing_drafts:
+        db.flush()
+
+    # Load context for AI generation
+    company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
+    contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
+    matched_offer, matched_resource = _load_match_context(opportunity, db)
+
+    result = generate_ai_draft(
+        opportunity=opportunity,
+        company=company,
+        contact=contact,
+        matched_offer=matched_offer,
+        matched_resource=matched_resource,
+    )
+
+    draft = MessageDraft(
+        opportunity_id=uid,
+        contact_id=opportunity.contact_id,
+        message_type=MessageType.prospecting_email,
+        language=opportunity.language,
+        subject=result["subject"],
+        body=result["body"],
+        status="draft",
+        generated_by="ai",
+        model_name=result["model_name"],
+        prompt_version=result["prompt_version"],
+    )
+    db.add(draft)
+    create_message_generated_compliance_event(db, draft, opportunity=opportunity)
+    sync_opportunity_to_draft_ready(opportunity)
+    db.commit()
+    db.refresh(draft)
+    return draft
