@@ -48,6 +48,7 @@ class Opportunity(BaseModel, table=True):
     recommended_landing_page: Optional[str] = Field(default=None)
     next_action: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
+    openproject_work_package_id: Optional[str] = Field(default=None)
 
     # relationships
     company: "Company" = Relationship(back_populates="opportunities")
