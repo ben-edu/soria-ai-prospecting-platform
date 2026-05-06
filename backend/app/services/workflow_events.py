@@ -203,3 +203,27 @@ def sync_opportunity_to_follow_up_needed(opportunity: Opportunity) -> None:
         OpportunityStatus.follow_up_needed,
         "Message envoyé manuellement — suivre la relance planifiée.",
     )
+
+
+def sync_opportunity_after_follow_up_done(opportunity: Opportunity) -> None:
+    """Set opportunity status to sent when a follow-up is marked done.
+
+    Only applies if the opportunity is not in a terminal state.
+    """
+    _sync_opportunity_status(
+        opportunity,
+        OpportunityStatus.sent,
+        "Relance effectuée — attendre une réponse ou planifier une nouvelle action.",
+    )
+
+
+def sync_opportunity_after_follow_up_cancelled(opportunity: Opportunity) -> None:
+    """Set opportunity status to closed when a follow-up is cancelled.
+
+    Only applies if the opportunity is not in a terminal state.
+    """
+    _sync_opportunity_status(
+        opportunity,
+        OpportunityStatus.closed,
+        "Suivi annulé — opportunité clôturée ou à réévaluer.",
+    )
