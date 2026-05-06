@@ -19,6 +19,8 @@ class MessageDraftCreate(BaseModel):
     generated_by: str = "manual"
     model_name: Optional[str] = None
     prompt_version: Optional[str] = None
+    ai_provider: Optional[str] = None
+    prompt_profile: Optional[str] = None
 
     @field_validator("body")
     @classmethod
@@ -67,6 +69,8 @@ class MessageDraftRead(BaseModel):
     generated_by: str
     model_name: Optional[str] = None
     prompt_version: Optional[str] = None
+    ai_provider: Optional[str] = None
+    prompt_profile: Optional[str] = None
     review_notes: Optional[str] = None
     approved_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None

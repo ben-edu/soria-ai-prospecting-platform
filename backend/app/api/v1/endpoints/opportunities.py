@@ -772,6 +772,8 @@ def generate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db
         generated_by="ai",
         model_name=result["model_name"],
         prompt_version=result["prompt_version"],
+        ai_provider=result["provider"],
+        prompt_profile=result["prompt_profile"],
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)
@@ -845,6 +847,8 @@ def regenerate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_
         generated_by="ai",
         model_name=result["model_name"],
         prompt_version=result["prompt_version"],
+        ai_provider=result["provider"],
+        prompt_profile=result["prompt_profile"],
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)

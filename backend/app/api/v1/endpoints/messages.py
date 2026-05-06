@@ -130,6 +130,8 @@ def create_message_draft(data: MessageDraftCreate, db: Session = Depends(get_db)
         generated_by=data.generated_by,
         model_name=data.model_name,
         prompt_version=data.prompt_version,
+        ai_provider=data.ai_provider,
+        prompt_profile=data.prompt_profile,
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)

@@ -28,6 +28,8 @@ class MessageDraft(BaseModel, table=True):
     generated_by: str = Field(default="system")
     model_name: Optional[str] = Field(default=None)
     prompt_version: Optional[str] = Field(default=None)
+    ai_provider: Optional[str] = Field(default=None)
+    prompt_profile: Optional[str] = Field(default=None)
     review_notes: Optional[str] = Field(default=None)
     approved_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     sent_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
