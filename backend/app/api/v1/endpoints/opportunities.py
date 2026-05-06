@@ -25,7 +25,10 @@ from app.schemas.opportunity import (
 from app.services.enrichment import enrich_opportunity
 from app.services.matching import match_assets
 from app.services.scoring import score_opportunity, suggest_next_action
-from app.services.workflow_events import create_message_generated_compliance_event
+from app.services.workflow_events import (
+    create_message_generated_compliance_event,
+    sync_opportunity_to_draft_ready,
+)
 
 router = APIRouter()
 
@@ -431,6 +434,7 @@ def generate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)
+    sync_opportunity_to_draft_ready(opportunity)
     db.commit()
     db.refresh(draft)
     return draft
@@ -503,6 +507,7 @@ def regenerate_draft(opportunity_id: str, db: Session = Depends(get_db)):
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)
+    sync_opportunity_to_draft_ready(opportunity)
     db.commit()
     db.refresh(draft)
     return draft

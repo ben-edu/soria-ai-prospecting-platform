@@ -23,6 +23,11 @@ from app.services.workflow_events import (
     create_message_generated_compliance_event,
     create_message_sent_compliance_event,
     schedule_follow_up_after_manual_send,
+    sync_opportunity_to_approved,
+    sync_opportunity_to_draft_needed,
+    sync_opportunity_to_draft_ready,
+    sync_opportunity_to_follow_up_needed,
+    sync_opportunity_to_waiting_validation,
 )
 
 router = APIRouter()
@@ -128,6 +133,7 @@ def create_message_draft(data: MessageDraftCreate, db: Session = Depends(get_db)
     )
     db.add(draft)
     create_message_generated_compliance_event(db, draft, opportunity=opportunity)
+    sync_opportunity_to_draft_ready(opportunity)
     db.commit()
     db.refresh(draft)
     return draft
@@ -201,6 +207,12 @@ def submit_draft_for_review(
         draft.review_notes = data.review_notes
 
     db.add(draft)
+
+    # Sync opportunity status
+    opportunity = db.get(Opportunity, draft.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_to_waiting_validation(opportunity)
+
     db.commit()
     db.refresh(draft)
     return draft
@@ -227,6 +239,12 @@ def approve_draft(
 
     db.add(draft)
     create_message_approved_compliance_event(db, draft)
+
+    # Sync opportunity status
+    opportunity = db.get(Opportunity, draft.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_to_approved(opportunity)
+
     db.commit()
     db.refresh(draft)
     return draft
@@ -251,6 +269,12 @@ def reject_draft(
         draft.review_notes = data.review_notes
 
     db.add(draft)
+
+    # Sync opportunity status
+    opportunity = db.get(Opportunity, draft.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_to_draft_needed(opportunity)
+
     db.commit()
     db.refresh(draft)
     return draft
@@ -275,6 +299,12 @@ def mark_draft_sent_manually(
     db.add(draft)
     create_message_sent_compliance_event(db, draft)
     schedule_follow_up_after_manual_send(db, draft)
+
+    # Sync opportunity status
+    opportunity = db.get(Opportunity, draft.opportunity_id)
+    if opportunity is not None:
+        sync_opportunity_to_follow_up_needed(opportunity)
+
     db.commit()
     db.refresh(draft)
     return draft
