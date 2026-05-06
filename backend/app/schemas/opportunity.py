@@ -187,3 +187,20 @@ class AiDraftPreviewResponse(BaseModel):
     body: str
     safety_note: str
     copy_hint: str
+
+
+class AiProviderDiagnosticsResponse(BaseModel):
+    """Diagnostics information about the AI provider configuration.
+
+    Returned by GET /api/v1/opportunities/ai-diagnostics/provider.
+    No database records are created or mutated.
+    """
+
+    configured_provider: str
+    configured_model_name: str
+    configured_prompt_profile: str
+    configured_prompt_version: str
+    available_providers: list[str]
+    provider_available: bool
+    status: str
+    message: str

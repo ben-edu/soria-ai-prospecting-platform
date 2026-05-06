@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.core.enums import MessageStatus, MessageType, OpportunityPriority, OpportunityStatus, OpportunityType
 from app.models.academy_resource import AcademyResource
 from app.models.company import Company
@@ -15,6 +16,7 @@ from app.models.opportunity import Opportunity
 from app.schemas.message_draft import MessageDraftRead
 from app.schemas.opportunity import (
     AiDraftPreviewResponse,
+    AiProviderDiagnosticsResponse,
     EnrichResponse,
     MatchAssetsResponse,
     OpenProjectWorkPackagePreviewResponse,
@@ -25,6 +27,12 @@ from app.schemas.opportunity import (
     ScoreResponse,
 )
 from app.services.ai_message_generation import generate_ai_draft
+from app.services.ai_providers import (
+    AIProviderGenerationError,
+    InvalidAIProviderOutputError,
+    UnknownAIProviderError,
+    list_available_ai_providers,
+)
 from app.services.enrichment import enrich_opportunity
 from app.services.matching import match_assets
 from app.services.openproject_preview import build_openproject_work_package_preview
@@ -83,6 +91,38 @@ def _resolve_opportunity_filters(
         )
 
     return conditions
+
+
+def _safe_generate_ai_draft(*args, **kwargs) -> dict:
+    """Wrap generate_ai_draft with safe HTTP error conversion.
+
+    Converts known AI provider exceptions to appropriate HTTP
+    exceptions with safe detail messages. Does not expose stack
+    traces or internal state.
+
+    Raises
+    ------
+    HTTPException
+        With status 503 for unknown provider, 502 for generation
+        or validation failures.
+    """
+    try:
+        return generate_ai_draft(*args, **kwargs)
+    except UnknownAIProviderError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI provider is not available: {exc}",
+        )
+    except AIProviderGenerationError:
+        raise HTTPException(
+            status_code=502,
+            detail="AI provider failed to generate a draft",
+        )
+    except InvalidAIProviderOutputError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI provider returned invalid output: {exc}",
+        )
 
 
 @router.get("", response_model=OpportunityListResponse)
@@ -152,6 +192,45 @@ def create_opportunity(data: OpportunityCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(opportunity)
     return opportunity
+
+
+@router.get("/ai-diagnostics/provider", response_model=AiProviderDiagnosticsResponse)
+def get_ai_diagnostics_provider():
+    """Return AI provider configuration diagnostics.
+
+    Reads settings, lists available providers, and reports whether the
+    configured provider is available. Does NOT create DB records, call
+    provider.generate(), or call external APIs.
+    """
+    configured_provider = settings.AI_DRAFT_PROVIDER
+    configured_model_name = settings.AI_DRAFT_MODEL_NAME
+    configured_prompt_profile = settings.AI_DRAFT_PROMPT_PROFILE
+    configured_prompt_version = settings.AI_DRAFT_PROMPT_VERSION
+    available_providers = list_available_ai_providers()
+    provider_available = configured_provider in available_providers
+
+    if provider_available:
+        status = "ok"
+        message = (
+            f"AI provider '{configured_provider}' is available."
+        )
+    else:
+        status = "error"
+        message = (
+            f"AI provider '{configured_provider}' is not registered. "
+            f"Available providers: [{', '.join(available_providers)}]"
+        )
+
+    return AiProviderDiagnosticsResponse(
+        configured_provider=configured_provider,
+        configured_model_name=configured_model_name,
+        configured_prompt_profile=configured_prompt_profile,
+        configured_prompt_version=configured_prompt_version,
+        available_providers=available_providers,
+        provider_available=provider_available,
+        status=status,
+        message=message,
+    )
 
 
 @router.get("/{opportunity_id}", response_model=OpportunityRead)
@@ -690,7 +769,7 @@ def get_ai_draft_preview(opportunity_id: str, db: Session = Depends(get_db)):
     contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
     matched_offer, matched_resource = _load_match_context(opportunity, db)
 
-    result = generate_ai_draft(
+    result = _safe_generate_ai_draft(
         opportunity=opportunity,
         company=company,
         contact=contact,
@@ -753,7 +832,7 @@ def generate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db
     contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
     matched_offer, matched_resource = _load_match_context(opportunity, db)
 
-    result = generate_ai_draft(
+    result = _safe_generate_ai_draft(
         opportunity=opportunity,
         company=company,
         contact=contact,
@@ -787,6 +866,10 @@ def generate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db
 def regenerate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_db)):
     """Archive existing active AI drafts and create a new AI draft.
 
+    **Safety:** AI generation succeeds *before* old drafts are archived,
+    so a provider failure does not leave the opportunity without an
+    active AI draft.
+
     Only archives drafts with generated_by='ai' and status in
     draft, needs_review, approved. Does NOT archive rule_based,
     sent_manually, or sent_by_system drafts.
@@ -802,7 +885,7 @@ def regenerate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
-    # Archive existing active AI drafts only
+    # Load existing active AI drafts (save reference for later archival)
     active_statuses = [
         MessageStatus.draft,
         MessageStatus.needs_review,
@@ -816,25 +899,27 @@ def regenerate_ai_draft_endpoint(opportunity_id: str, db: Session = Depends(get_
         )
     ).all()
 
-    for draft in existing_drafts:
-        draft.status = MessageStatus.archived
-        db.add(draft)
-
-    if existing_drafts:
-        db.flush()
-
     # Load context for AI generation
     company = db.get(Company, opportunity.company_id) if opportunity.company_id else None
     contact = db.get(Contact, opportunity.contact_id) if opportunity.contact_id else None
     matched_offer, matched_resource = _load_match_context(opportunity, db)
 
-    result = generate_ai_draft(
+    # Call AI generation BEFORE archiving — if this fails, old drafts remain intact
+    result = _safe_generate_ai_draft(
         opportunity=opportunity,
         company=company,
         contact=contact,
         matched_offer=matched_offer,
         matched_resource=matched_resource,
     )
+
+    # Generation succeeded — now it is safe to archive old drafts
+    for draft in existing_drafts:
+        draft.status = MessageStatus.archived
+        db.add(draft)
+
+    if existing_drafts:
+        db.flush()
 
     draft = MessageDraft(
         opportunity_id=uid,
