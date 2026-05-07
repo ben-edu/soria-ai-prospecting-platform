@@ -48,6 +48,7 @@ import {
   FollowUpEdit,
   FollowUpShow,
 } from "./resources/followUps";
+import { ExternalSourceSearch } from "./resources/externalSources";
 
 export const App = () => (
   <Admin
@@ -110,5 +111,6 @@ export const App = () => (
       create={ComplianceEventCreate}
       show={ComplianceEventShow}
     />
+    <Resource name="external-sources" list={ExternalSourceSearch} />
   </Admin>
 );
