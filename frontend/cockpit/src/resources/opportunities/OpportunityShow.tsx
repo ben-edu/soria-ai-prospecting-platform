@@ -13,33 +13,52 @@ import {
   useShowContext,
 } from "react-admin";
 import {
+  Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Stack,
   TextField as MuiTextField,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../config";
+
+interface AiPreviewData {
+  subject: unknown;
+  body: unknown;
+  provider: unknown;
+  model_name: unknown;
+  prompt_profile: unknown;
+  prompt_version: unknown;
+  safety_note: unknown;
+}
+
+interface PreviewData {
+  subject: unknown;
+  description: unknown;
+  suggested_type: unknown;
+  suggested_status: unknown;
+  suggested_priority: unknown;
+}
 
 const OpportunityActions = () => {
   const { record, isLoading } = useShowContext();
   const notify = useNotify();
   const refresh = useRefresh();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
-  const [aiPreviewData, setAiPreviewData] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
+  const [aiPreviewData, setAiPreviewData] = useState<AiPreviewData | null>(
+    null,
+  );
   const [aiPreviewLoading, setAiPreviewLoading] = useState(false);
 
   if (isLoading || !record) return null;
@@ -370,84 +389,153 @@ const OpportunityActions = () => {
     }
   };
 
+  const handleViewMessageDrafts = () => {
+    const filter = JSON.stringify({ opportunity_id: String(record.id) });
+    navigate(`/message-drafts?filter=${encodeURIComponent(filter)}`);
+  };
+
   return (
     <>
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          color="info"
-          onClick={handleEnrich}
-          disabled={loading !== null}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+          Qualification actions
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button
+            variant="contained"
+            color="info"
+            onClick={handleEnrich}
+            disabled={loading !== null}
+          >
+            {loading === "enrich" ? "Enriching..." : "Enrich opportunity"}
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleMatchAssets}
+            disabled={loading !== null}
+          >
+            {loading === "match" ? "Matching..." : "Match offer/resources"}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleScore}
+            disabled={loading !== null}
+          >
+            {loading === "score" ? "Scoring..." : "Score opportunity"}
+          </Button>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+          Rule-based draft actions
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleGenerateDraft}
+            disabled={loading !== null}
+          >
+            {loading === "draft"
+              ? "Generating..."
+              : "Generate rule-based draft"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={handleRegenerateDraft}
+            disabled={loading !== null}
+          >
+            {loading === "regenerate"
+              ? "Regenerating..."
+              : "Regenerate rule-based draft"}
+          </Button>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 0.5 }}>
+          AI-assisted draft actions
+        </Typography>
+        <Box
+          sx={{
+            mb: 1,
+            pl: 0.5,
+          }}
         >
-          {loading === "enrich" ? "Enriching..." : "Enrich opportunity"}
-        </Button>
-        <Button
-          variant="contained"
-          color="success"
-          onClick={handleMatchAssets}
-          disabled={loading !== null}
-        >
-          {loading === "match" ? "Matching..." : "Match offer/resources"}
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleScore}
-          disabled={loading !== null}
-        >
-          {loading === "score" ? "Scoring..." : "Score opportunity"}
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleGenerateDraft}
-          disabled={loading !== null}
-        >
-          {loading === "draft" ? "Generating..." : "Generate draft"}
-        </Button>
-        <Button
-          variant="outlined"
-          color="warning"
-          onClick={handleRegenerateDraft}
-          disabled={loading !== null}
-        >
-          {loading === "regenerate" ? "Regenerating..." : "Regenerate draft"}
-        </Button>
-        <Button
-          variant="contained"
-          color="info"
-          onClick={handleOpenPreview}
-          disabled={loading !== null || previewLoading}
-        >
-          {previewLoading ? "Loading..." : "OpenProject preview"}
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleAiPreview}
-          disabled={loading !== null || aiPreviewLoading}
-        >
-          {aiPreviewLoading ? "Loading..." : "AI draft preview"}
-        </Button>
-        <Button
-          variant="contained"
-          color="success"
-          onClick={handleGenerateAiDraft}
-          disabled={loading !== null}
-        >
-          {loading === "ai-draft" ? "Generating..." : "Generate AI draft"}
-        </Button>
-        <Button
-          variant="outlined"
-          color="warning"
-          onClick={handleRegenerateAiDraft}
-          disabled={loading !== null}
-        >
-          {loading === "regenerate-ai"
-            ? "Regenerating..."
-            : "Regenerate AI draft"}
-        </Button>
-      </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {"\u2022"} AI draft preview is read-only.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {"\u2022"} Generate AI draft creates or reuses an active draft.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {"\u2022"} Regenerate AI draft archives previous active AI drafts
+            only after successful generation.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {"\u2022"} Human validation is mandatory before any external
+            sending.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleAiPreview}
+            disabled={loading !== null || aiPreviewLoading}
+          >
+            {aiPreviewLoading ? "Loading..." : "AI draft preview"}
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleGenerateAiDraft}
+            disabled={loading !== null}
+          >
+            {loading === "ai-draft" ? "Generating..." : "Generate AI draft"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={handleRegenerateAiDraft}
+            disabled={loading !== null}
+          >
+            {loading === "regenerate-ai"
+              ? "Regenerating..."
+              : "Regenerate AI draft"}
+          </Button>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+          Project tracking
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button
+            variant="contained"
+            color="info"
+            onClick={handleOpenPreview}
+            disabled={loading !== null || previewLoading}
+          >
+            {previewLoading ? "Loading..." : "OpenProject preview"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={handleViewMessageDrafts}
+            disabled={loading !== null}
+          >
+            View related message drafts
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* OpenProject Work Package Preview */}
       <Dialog
         open={previewOpen}
         onClose={handleClosePreview}
@@ -496,6 +584,8 @@ const OpportunityActions = () => {
           <Button onClick={handleClosePreview}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Draft Preview */}
       <Dialog
         open={aiPreviewOpen}
         onClose={handleCloseAiPreview}
@@ -506,11 +596,39 @@ const OpportunityActions = () => {
         <DialogContent dividers>
           {aiPreviewData && (
             <>
-              <Typography variant="subtitle2" gutterBottom>
-                Provider: {String(aiPreviewData.provider ?? "")}
-                {" | "}Model: {String(aiPreviewData.model_name ?? "")}
-                {" | "}Prompt: {String(aiPreviewData.prompt_version ?? "")}
-              </Typography>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                This preview is read-only. It does not create a MessageDraft and
+                does not create a ComplianceEvent.
+              </Alert>
+
+              <Box
+                sx={{
+                  mb: 2,
+                  p: 1.5,
+                  bgcolor: "grey.50",
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: "grey.200",
+                }}
+              >
+                <Typography variant="body2">
+                  <strong>Provider:</strong>{" "}
+                  {String(aiPreviewData.provider ?? "")}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Model:</strong>{" "}
+                  {String(aiPreviewData.model_name ?? "")}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Prompt profile:</strong>{" "}
+                  {String(aiPreviewData.prompt_profile ?? "")}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Prompt version:</strong>{" "}
+                  {String(aiPreviewData.prompt_version ?? "")}
+                </Typography>
+              </Box>
+
               <MuiTextField
                 label="Subject"
                 value={String(aiPreviewData.subject ?? "")}
@@ -531,16 +649,10 @@ const OpportunityActions = () => {
                 InputProps={{ readOnly: true }}
                 variant="outlined"
               />
-              <MuiTextField
-                label="Safety note"
-                value={String(aiPreviewData.safety_note ?? "")}
-                fullWidth
-                margin="normal"
-                size="small"
-                InputProps={{ readOnly: true }}
-                variant="outlined"
-                color="warning"
-              />
+
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                {String(aiPreviewData.safety_note ?? "")}
+              </Alert>
             </>
           )}
         </DialogContent>
