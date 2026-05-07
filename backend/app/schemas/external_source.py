@@ -1,6 +1,7 @@
 """Pydantic schemas for external opportunity sources.
 
 Phase 9A — External Opportunity Sources Foundation.
+Phase 9B — Import External Candidate into SourceRecord + Company + Opportunity.
 """
 
 from datetime import datetime
@@ -64,4 +65,20 @@ class ExternalSourceDiagnosticsResponse(BaseModel):
     providers: list[ExternalSourceProviderInfo]
     enabled_providers: list[str]
     mock_only: bool
+    message: str
+
+
+class ImportExternalCandidateResponse(BaseModel):
+    """Response from importing an external candidate.
+
+    Phase 9B — returns created/reused SourceRecord, Company, Opportunity.
+    """
+
+    source_record: dict = {}
+    company: dict = {}
+    opportunity: dict = {}
+    created_source_record: bool
+    created_company: bool
+    created_opportunity: bool
+    duplicate_detected: bool
     message: str

@@ -43,3 +43,10 @@ def _setup_database():
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture
+def db_session():
+    """Provide a SQLModel session backed by the test in-memory database."""
+    with Session(test_engine) as session:
+        yield session

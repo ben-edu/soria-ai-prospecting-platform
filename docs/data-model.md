@@ -46,9 +46,21 @@ AI-generated or manually written messages requiring human approval before sendin
 ### Compliance Events
 Audit trail for RGPD/legal compliance — tracks contact collection, message generation (`message_generated`), approval (`message_approved`), sending (`message_sent`), and opt-out requests.
 
-## External Sources (Phase 9A — Not Yet Imported)
+## External Sources (Phase 9A + 9B)
 
-Phase 9A introduces external opportunity source search endpoints that return `ExternalOpportunityCandidate` schemas. These candidates are **not persisted** — Phase 9A is read-only. Phase 9B will import selected candidates into `SourceRecord`, `Company`, and `Opportunity`.
+### Phase 9A — Search (Read-Only)
+
+Phase 9A introduced external opportunity source search endpoints that return `ExternalOpportunityCandidate` schemas. These candidates are **not persisted** by search — search is read-only.
+
+### Phase 9B — Controlled Import
+
+Phase 9B adds the ability to import one external candidate into SORIA internal tables:
+
+- **SourceRecord** — stores the external raw payload (`raw_payload` JSON), provider name (`source_name`), external ID (`external_id`), import timestamp (`imported_at`), and processing notes. Acts as the provenance anchor for all imported data.
+- **Company** — found by name + country match, or created if not found. A fallback company name (`"Unknown External Company - {provider}"`) is used when the candidate has no company name.
+- **Opportunity** — created with provenance metadata in `notes` (provider, external_id, source_kind, country, contract_type, remote_type, budget).
+
+Deduplication is handled by `(SourceRecord.source_name, SourceRecord.external_id)`. No MessageDraft, FollowUp, or ComplianceEvent is created during import.
 
 ## Key Constraints
 
