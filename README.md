@@ -87,6 +87,10 @@ uv run uvicorn app.main:app --reload --port 8000
 | `CORS_ORIGINS` | Allowed CORS origins | http://localhost:3000,http://localhost:8000 |
 | `SECRET_KEY` | Application secret key | change-me |
 | `LOG_LEVEL` | Logging level | INFO |
+| `AI_DRAFT_PROVIDER` | AI provider for message draft generation | mock_ai |
+| `AI_DRAFT_PROMPT_PROFILE` | Prompt profile identifier | prospecting_fr_v1 |
+| `AI_DRAFT_MODEL_NAME` | Model name reported in audit metadata | mock-soria-v1 |
+| `AI_DRAFT_PROMPT_VERSION` | Prompt version reported in audit metadata | ai-draft-v1 |
 
 ### Database Migrations
 
@@ -118,6 +122,8 @@ Message drafts follow a controlled human-validation lifecycle:
 - **rejected** &rarr; submit-review &rarr; **needs_review** (re-submit after revision)
 
 Endpoints: `GET/POST /api/v1/message-drafts`, `GET/PATCH /api/v1/message-drafts/{id}`, workflow actions via `/submit-review`, `/approve`, `/reject`, `/mark-sent-manually`.
+
+See [AI-Assisted Message Workflow](docs/phase-8-ai-assisted-message-workflow.md) for documentation of the AI draft generation pipeline (preview, generate, regenerate, diagnostics, provider architecture, audit metadata).
 
 ### API Health
 

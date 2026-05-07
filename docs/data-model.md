@@ -41,10 +41,10 @@ What SORIA sells — training, DevOps, cloud, security services.
 Learning content available through SORIA Academy.
 
 ### Message Drafts
-AI-generated or manually written messages requiring human approval before sending.
+AI-generated or manually written messages requiring human approval before sending. AI-generated drafts include audit metadata fields: `generated_by` (origin: "ai", "rule_based", "manual", "system"), `ai_provider` (e.g. "mock_ai"), `model_name`, `prompt_profile`, and `prompt_version`. Human review actions are tracked via `review_notes`, `approved_at`, and `sent_at`.
 
 ### Compliance Events
-Audit trail for RGPD/legal compliance — tracks contact collection, message generation, approval, sending, and opt-out requests.
+Audit trail for RGPD/legal compliance — tracks contact collection, message generation (`message_generated`), approval (`message_approved`), sending (`message_sent`), and opt-out requests.
 
 ## Key Constraints
 
