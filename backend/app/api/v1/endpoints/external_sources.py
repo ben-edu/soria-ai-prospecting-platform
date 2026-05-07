@@ -1,16 +1,22 @@
 """API endpoints for external opportunity sources.
 
 Phase 9A — External Opportunity Sources Foundation.
+Phase 9B — Import External Candidate into SourceRecord + Company + Opportunity.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session
 
+from app.api.deps import get_db
 from app.schemas.external_source import (
+    ExternalOpportunityCandidate,
     ExternalOpportunitySearchResponse,
     ExternalSourceDiagnosticsResponse,
+    ImportExternalCandidateResponse,
 )
 from app.services.external_sources import (
     get_enabled_provider_names,
+    import_external_candidate,
     list_external_source_providers,
     search_external_opportunities,
     search_multiple_external_sources,
@@ -20,8 +26,8 @@ router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
-# NOTE: /providers and /search MUST be declared before /{provider}/search
-# to avoid FastAPI path parameter conflicts.
+# NOTE: /providers, /search, and /import-candidate MUST be declared before
+# /{provider}/search to avoid FastAPI path parameter conflicts.
 # ---------------------------------------------------------------------------
 
 
@@ -97,6 +103,25 @@ def combined_search(
         total=len(results),
         items=results,
     )
+
+
+@router.post(
+    "/import-candidate",
+    response_model=ImportExternalCandidateResponse,
+)
+def post_import_candidate(
+    payload: ExternalOpportunityCandidate,
+    db: Session = Depends(get_db),
+):
+    """Import an external candidate into SourceRecord, Company, and Opportunity."""
+    try:
+        result = import_external_candidate(candidate=payload, db=db)
+        return result
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
 
 @router.get(

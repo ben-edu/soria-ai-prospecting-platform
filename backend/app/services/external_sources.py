@@ -8,9 +8,22 @@ All providers are deterministic mocks. No real external API calls.
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlmodel import Session
+
+from app.core.enums import (
+    CompanyStatus,
+    OpportunityPriority,
+    OpportunityStatus,
+    OpportunityType,
+    SourceType,
+)
+from app.models.company import Company
+from app.models.opportunity import Opportunity
+from app.models.source_record import SourceRecord
 from app.schemas.external_source import (
     ExternalOpportunityCandidate,
     ExternalSourceProviderInfo,
+    ImportExternalCandidateResponse,
 )
 
 # ---------------------------------------------------------------------------
@@ -634,3 +647,238 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             )
             for c in candidates
         ]
+
+
+# ---------------------------------------------------------------------------
+# Phase 9B — Import external candidate into SourceRecord + Company + Opportunity
+# ---------------------------------------------------------------------------
+
+_DEVOPS_CLOUD_KEYWORDS = {
+    "devops", "cloud", "kubernetes", "terraform", "aws", "azure",
+    "ci/cd", "ci cd", "docker", "automation", "platform engineering",
+    "migration", "infrastructure", "github actions",
+}
+
+
+def _determine_opportunity_type(candidate: ExternalOpportunityCandidate) -> OpportunityType:
+    """Determine OpportunityType based on candidate source_kind and content."""
+    text_to_check = (
+        (candidate.title or "").lower()
+        + " "
+        + (candidate.description or "").lower()
+        + " "
+        + " ".join(t.lower() for t in candidate.tags)
+    )
+    has_devops_cloud = any(kw in text_to_check for kw in _DEVOPS_CLOUD_KEYWORDS)
+    if has_devops_cloud:
+        return OpportunityType.devops_cloud
+    return OpportunityType.other
+
+
+def _build_opportunity_notes(candidate: ExternalOpportunityCandidate) -> str:
+    """Build provenance notes for the Opportunity."""
+    lines = [
+        f"provider={candidate.provider}",
+        f"external_id={candidate.external_id}",
+        f"source_kind={candidate.source_kind}",
+    ]
+    if candidate.country:
+        lines.append(f"country={candidate.country}")
+    if candidate.contract_type:
+        lines.append(f"contract_type={candidate.contract_type}")
+    if candidate.remote_type:
+        lines.append(f"remote_type={candidate.remote_type}")
+    if candidate.budget_min is not None:
+        curr = candidate.budget_currency or ""
+        lines.append(f"budget_min={candidate.budget_min} {curr}".strip())
+    if candidate.budget_max is not None:
+        curr = candidate.budget_currency or ""
+        lines.append(f"budget_max={candidate.budget_max} {curr}".strip())
+    return "\n".join(lines)
+
+
+def _get_or_create_company(
+    candidate: ExternalOpportunityCandidate,
+    db: Session,
+) -> tuple[Company, bool]:
+    """Find existing company by name + country, or create a new one.
+
+    Returns (company, created) where *created* is True if a new Company
+    was created.
+    """
+    company_name = candidate.company_name or f"Unknown External Company - {candidate.provider}"
+    country = candidate.country or "France"
+
+    existing = db.query(Company).filter(
+        Company.name == company_name,
+        Company.country == country,
+    ).first()
+    if existing:
+        return existing, False
+
+    company = Company(
+        name=company_name,
+        country=country,
+        city=candidate.location,
+        source=SourceType.france_travail if candidate.provider == "france_travail" else SourceType.other,
+        source_url=candidate.source_url,
+        status=CompanyStatus.new,
+        notes=f"Imported from {candidate.provider}. External ID: {candidate.external_id}",
+    )
+    db.add(company)
+    db.flush()
+    db.refresh(company)
+    return company, True
+
+
+def _create_opportunity(
+    candidate: ExternalOpportunityCandidate,
+    company: Company,
+    db: Session,
+) -> Opportunity:
+    """Create an Opportunity from a candidate."""
+    source = (
+        SourceType.france_travail
+        if candidate.provider == "france_travail"
+        else SourceType.other
+    )
+    default_language = "fr" if candidate.provider == "france_travail" else "en"
+    language = candidate.language or default_language
+
+    opportunity = Opportunity(
+        company_id=company.id,
+        title=candidate.title,
+        opportunity_type=_determine_opportunity_type(candidate),
+        description=candidate.description,
+        source=source,
+        source_url=candidate.source_url,
+        source_published_at=candidate.source_published_at,
+        location=candidate.location,
+        language=language,
+        status=OpportunityStatus.new,
+        priority=OpportunityPriority.medium,
+        notes=_build_opportunity_notes(candidate),
+    )
+    db.add(opportunity)
+    db.flush()
+    db.refresh(opportunity)
+    return opportunity
+
+
+def import_external_candidate(
+    candidate: ExternalOpportunityCandidate,
+    db: Session,
+) -> ImportExternalCandidateResponse:
+    """Import an external opportunity candidate into SORIA.
+
+    Validates the provider, deduplicates by SourceRecord, creates or reuses
+    Company and Opportunity, and records the import in a SourceRecord.
+
+    Returns
+    -------
+    ImportExternalCandidateResponse with the resulting records and flags.
+
+    Raises
+    ------
+    ValueError
+        If *candidate.provider* is not registered.
+    """
+    # 1. Validate provider exists
+    if candidate.provider not in PROVIDER_REGISTRY:
+        raise ValueError(
+            f"Unknown external source provider: '{candidate.provider}'. "
+            f"Available providers: [{', '.join(sorted(PROVIDER_REGISTRY))}]"
+        )
+
+    # 2. Deduplicate by SourceRecord
+    existing_sr = db.query(SourceRecord).filter(
+        SourceRecord.source_name == candidate.provider,
+        SourceRecord.external_id == candidate.external_id,
+    ).first()
+
+    if existing_sr and existing_sr.processed:
+        opportunity = db.query(Opportunity).filter(
+            Opportunity.notes.contains(f"provider={candidate.provider}"),
+            Opportunity.notes.contains(f"external_id={candidate.external_id}"),
+        ).first()
+        if opportunity:
+            company = db.get(Company, opportunity.company_id)
+            return ImportExternalCandidateResponse(
+                source_record=_dump(existing_sr),
+                company=_dump(company),
+                opportunity=_dump(opportunity),
+                created_source_record=False,
+                created_company=False,
+                created_opportunity=False,
+                duplicate_detected=True,
+                message=(
+                    f"Duplicate import. Existing SourceRecord "
+                    f"({existing_sr.id}) and Opportunity ({opportunity.id}) "
+                    f"already exist for provider={candidate.provider} "
+                    f"external_id={candidate.external_id}."
+                ),
+            )
+
+    # 3. Get or create Company
+    company, company_created = _get_or_create_company(candidate, db)
+
+    # 4. Create Opportunity
+    opportunity = _create_opportunity(candidate, company, db)
+
+    # 5. Create or update SourceRecord
+    if existing_sr:
+        source_record = existing_sr
+        source_record.processed = True
+        source_record.processing_notes = (
+            f"Company {company.id} ({'created' if company_created else 'reused'}), "
+            f"Opportunity {opportunity.id} (created)"
+        )
+        created_sr = False
+    else:
+        source_type = (
+            SourceType.france_travail
+            if candidate.provider == "france_travail"
+            else SourceType.other
+        )
+        source_record = SourceRecord(
+            source_type=source_type,
+            source_name=candidate.provider,
+            source_url=candidate.source_url,
+            external_id=candidate.external_id,
+            raw_payload=candidate.raw_payload or {},
+            imported_at=datetime.now(timezone.utc),
+            processed=True,
+            processing_notes=(
+                f"Company {company.id} ({'created' if company_created else 'reused'}), "
+                f"Opportunity {opportunity.id} (created)"
+            ),
+        )
+        db.add(source_record)
+        created_sr = True
+
+    db.commit()
+    db.refresh(company)
+    db.refresh(opportunity)
+    db.refresh(source_record)
+
+    return ImportExternalCandidateResponse(
+        source_record=_dump(source_record),
+        company=_dump(company),
+        opportunity=_dump(opportunity),
+        created_source_record=created_sr,
+        created_company=company_created,
+        created_opportunity=True,
+        duplicate_detected=False,
+        message=(
+            f"Import successful. "
+            f"SourceRecord ({'created' if created_sr else 'reused'}): {source_record.id}, "
+            f"Company ({'created' if company_created else 'reused'}): {company.id}, "
+            f"Opportunity (created): {opportunity.id}."
+        ),
+    )
+
+
+def _dump(instance) -> dict:
+    """Serialize a SQLModel instance to a JSON-safe dict."""
+    from fastapi.encoders import jsonable_encoder
+    return jsonable_encoder(instance.model_dump())
