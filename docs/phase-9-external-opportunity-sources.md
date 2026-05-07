@@ -18,7 +18,9 @@ Phase 9 adds the ability to discover and import external opportunities from publ
 |-------|-------------|--------|
 | **9A** | Mock-only foundation. Deterministic providers. Read-only search endpoints. No real API calls. No credentials. | ✅ Done |
 | **9B** | Import candidates into `SourceRecord`, `Company`, and `Opportunity` | ✅ Done |
-| **9C/9D/9E** | Real connector implementations for each provider | 📅 Planned |
+| **9C** | Cockpit external source search and import UX | ✅ Done |
+| **9D** | SourceRecord / Import Provenance UX | ✅ Done |
+| **9E** | Real connector implementations for each provider | 📅 Planned |
 
 ---
 
@@ -168,3 +170,59 @@ Each import creates a `SourceRecord` with:
 - `backend/app/services/external_sources.py` — `import_external_candidate()` service function
 - `backend/app/api/v1/endpoints/external_sources.py` — `POST /import-candidate` endpoint
 - `backend/tests/test_phase9b.py` — Phase 9B tests (31 tests)
+
+---
+
+## Phase 9D — SourceRecord / Import Provenance UX
+
+### Purpose
+
+Make SourceRecord import provenance visible in the SORIA Cockpit. Adds a read-only API and a Cockpit resource for browsing and inspecting import records.
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/source-records` | List source records (paginated, filterable) |
+| `GET` | `/api/v1/source-records/{id}` | Get a single source record |
+
+**List filters:** `skip`, `limit`, `source_name`, `source_type`, `external_id`, `processed`, `search`
+
+**Search matches against:** `source_name`, `external_id`, `source_url`, `processing_notes`
+
+### Schema — SourceRecordRead
+
+Exposes all model fields plus two computed fields derived from `processing_notes`:
+
+| Field | Source |
+|-------|--------|
+| `id`, `source_type`, `source_name`, `source_url`, `external_id` | Direct model fields |
+| `raw_payload` | Direct model field (JSON) |
+| `imported_at`, `processed`, `processing_notes` | Direct model fields |
+| `created_at`, `updated_at` | Base model timestamps |
+| `linked_company_id` | Extracted from `processing_notes` via pattern `"Company <uuid> ("` |
+| `linked_opportunity_id` | Extracted from `processing_notes` via pattern `"Opportunity <uuid> ("` |
+
+If parsing fails, linked IDs return `null`.
+
+### Constraints
+
+- **Read-only** — no POST, PATCH, or DELETE endpoints
+- **No database mutations** — endpoints only query SourceRecord table
+- **No side effects** — endpoints do not create MessageDraft, FollowUp, or ComplianceEvent
+
+### Cockpit Resource
+
+- Resource name: `source-records`
+- **List** with filters: search, source_name, source_type, external_id, processed
+- **Show** displays all fields, raw_payload as formatted JSON, linked_company_id/opportunity_id with navigation buttons
+- Alert banner explaining read-only provenance semantics
+
+### Key Files
+
+- `backend/app/schemas/source_record.py` — `SourceRecordRead`, `SourceRecordListResponse`
+- `backend/app/api/v1/endpoints/source_records.py` — read-only REST endpoints
+- `frontend/cockpit/src/resources/sourceRecords/SourceRecordList.tsx` — list view
+- `frontend/cockpit/src/resources/sourceRecords/SourceRecordShow.tsx` — show view
+- `frontend/cockpit/src/App.tsx` — resource registration
+- `backend/tests/test_phase9d.py` — Phase 9D tests (21 tests)

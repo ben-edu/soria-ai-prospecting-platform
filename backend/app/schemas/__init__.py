@@ -28,6 +28,7 @@ from app.schemas.opportunity import (
     OpportunityUpdate,
     ScoreResponse,
 )
+from app.schemas.source_record import SourceRecordListResponse, SourceRecordRead
 
 __all__ = [
     "Message",
@@ -67,4 +68,6 @@ __all__ = [
     "ComplianceEventCreate",
     "ComplianceEventRead",
     "ComplianceEventListResponse",
+    "SourceRecordRead",
+    "SourceRecordListResponse",
 ]
