@@ -49,6 +49,7 @@ import {
   FollowUpShow,
 } from "./resources/followUps";
 import { ExternalSourceSearch } from "./resources/externalSources";
+import { SourceRecordList, SourceRecordShow } from "./resources/sourceRecords";
 
 export const App = () => (
   <Admin
@@ -112,5 +113,10 @@ export const App = () => (
       show={ComplianceEventShow}
     />
     <Resource name="external-sources" list={ExternalSourceSearch} />
+    <Resource
+      name="source-records"
+      list={SourceRecordList}
+      show={SourceRecordShow}
+    />
   </Admin>
 );
