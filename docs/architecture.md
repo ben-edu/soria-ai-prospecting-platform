@@ -42,6 +42,10 @@ The platform includes a provider abstraction layer (`ai_providers.py`) with a re
 
 A read-only diagnostics endpoint (`GET /opportunities/ai-diagnostics/provider`) reports configured provider, model, prompt profile, prompt version, and provider availability. Safe failure handling ensures that regeneration archives old drafts only after successful generation, preventing data loss on provider failure.
 
+### External Source Provider Abstraction
+
+The platform includes an external source provider abstraction (`external_sources.py`) with a registered provider registry, resolver, and mock implementations for France Travail, Adzuna UK, and Freelancer.com. The registry pattern mirrors the AI provider abstraction. All providers are currently mock-only — no real external API calls are made. Read-only search endpoints (`GET /external-sources/*`) enable discovery without database mutations.
+
 ## Future Integrations
 
 - Real external AI provider integration (OpenAI/Claude)

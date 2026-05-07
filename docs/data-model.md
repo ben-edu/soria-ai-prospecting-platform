@@ -46,6 +46,10 @@ AI-generated or manually written messages requiring human approval before sendin
 ### Compliance Events
 Audit trail for RGPD/legal compliance — tracks contact collection, message generation (`message_generated`), approval (`message_approved`), sending (`message_sent`), and opt-out requests.
 
+## External Sources (Phase 9A — Not Yet Imported)
+
+Phase 9A introduces external opportunity source search endpoints that return `ExternalOpportunityCandidate` schemas. These candidates are **not persisted** — Phase 9A is read-only. Phase 9B will import selected candidates into `SourceRecord`, `Company`, and `Opportunity`.
+
 ## Key Constraints
 
 - Every message draft has a status lifecycle: draft → needs_review → approved/rejected → sent_manually/sent_by_system

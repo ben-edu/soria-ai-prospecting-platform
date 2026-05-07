@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     companies,
     compliance_events,
     contacts,
+    external_sources,
     follow_ups,
     health,
     messages,
@@ -27,3 +28,4 @@ router.include_router(academy_resources.router, prefix="/academy-resources", tag
 router.include_router(messages.router, prefix="/message-drafts", tags=["messages"])
 router.include_router(follow_ups.router, prefix="/follow-ups", tags=["follow-ups"])
 router.include_router(compliance_events.router, prefix="/compliance-events", tags=["compliance-events"])
+router.include_router(external_sources.router, prefix="/external-sources", tags=["external-sources"])
