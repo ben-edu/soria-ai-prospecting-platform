@@ -14,11 +14,12 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] Seed data script
 - [x] Dockerfile
 - [x] Documentation
+- [x] AI-assisted message draft generation with human validation (mock_ai provider, provider abstraction, prompt builder, diagnostics, Cockpit UX, human review workflow)
 
 ## Planned (Future Phases)
 
+- Real external AI provider integration (OpenAI/Claude)
 - LLM-based opportunity scoring and qualification
-- AI message generation with human validation
 - External data enrichment (Hunter, Dropcontact)
 - Company website scraping and analysis
 - LinkedIn opportunity discovery
