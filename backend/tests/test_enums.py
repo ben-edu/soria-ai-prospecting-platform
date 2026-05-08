@@ -48,10 +48,11 @@ def test_company_status_values():
 
 def test_opportunity_status_values():
     expected = {
-        "new", "to_analyze", "scored", "interesting", "not_relevant",
-        "contact_to_find", "contact_found", "draft_needed", "draft_ready",
-        "waiting_validation", "approved", "sent", "follow_up_needed",
-        "response_received", "meeting_scheduled", "converted", "lost", "closed",
+        "new", "imported_pending_review", "to_analyze", "scored",
+        "interesting", "not_relevant", "contact_to_find", "contact_found",
+        "draft_needed", "draft_ready", "waiting_validation", "approved",
+        "sent", "follow_up_needed", "response_received", "meeting_scheduled",
+        "converted", "lost", "closed",
     }
     actual = {e.value for e in OpportunityStatus}
     assert actual == expected

@@ -881,7 +881,7 @@ def _create_opportunity(
         source_published_at=candidate.source_published_at,
         location=candidate.location,
         language=language,
-        status=OpportunityStatus.new,
+        status=OpportunityStatus.imported_pending_review,
         priority=OpportunityPriority.medium,
         notes=_build_opportunity_notes(candidate),
     )

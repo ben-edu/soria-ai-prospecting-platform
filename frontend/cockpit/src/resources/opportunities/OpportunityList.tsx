@@ -25,6 +25,7 @@ const OPPORTUNITY_TYPE_CHOICES = [
 
 const STATUS_CHOICES = [
   { id: "new", name: "New" },
+  { id: "imported_pending_review", name: "Imported (Pending Review)" },
   { id: "to_analyze", name: "To Analyze" },
   { id: "scored", name: "Scored" },
   { id: "interesting", name: "Interesting" },

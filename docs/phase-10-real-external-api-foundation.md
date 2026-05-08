@@ -14,7 +14,7 @@ This phase introduces:
 
 - **No real API calls** — all providers remain deterministic mocks
 - **No secrets in code** — credentials are read from environment variables only
-- **Backward compatible** — Phase 9A/9B/9C/9D behavior is unchanged
+- **Backward compatible** — Phase 9A/9B/10A/10B/10C/11A behavior is unchanged
 - **Observable** — every provider exposes its configuration state via the diagnostics endpoint
 
 ## Configuration Settings
@@ -169,13 +169,20 @@ URLs default to the known France Travail (ex-Pôle emploi) API endpoints when no
 | `TestMockModeNoDbMutation` | Read-only endpoints do not mutate the database |
 | `TestExistingProvidersNotBroken` | Provider registry and external_sources module are not affected |
 
-### Future Phase 10C
+### Phase 10C — Live-Mode Gating for France Travail
 
-Phase 10C will wire the real France Travail search behind `EXTERNAL_SOURCES_MODE` with strict safety checks:
+Phase 10C wires the real France Travail search behind `EXTERNAL_SOURCES_MODE` with strict safety checks:
 - When `EXTERNAL_SOURCES_MODE != "mock"`, `FranceTravailAPIClient` replaces `FranceTravailMockProvider` for search
 - Credentials validation before any live call
 - Rate limiting, timeout handling, and circuit breaker
 - Audit logging for all real API calls
+- **Production remains in `EXTERNAL_SOURCES_MODE=mock` by default** — live calls never execute without explicit operator action
+
+### Key Files (Phase 10C)
+
+- `backend/app/services/external_sources.py` — `_get_provider_for_mode()` dispatch, `FranceTravailProvider` mode-aware wrapper
+- `backend/app/services/france_travail_client.py` — `FranceTravailAPIClient.search_offers()` invoked when live
+- `backend/tests/test_phase10c.py` — Phase 10C tests (gating smoke test, mock-mode regression, provider diagnostics, read-only, no DB mutation)
 
 ## Diagnostics Logic
 
@@ -198,7 +205,58 @@ In Phase 10A, `real_api_enabled` is always `False` because the default mode is `
 | **9D** | SourceRecord / Import Provenance UX | ✅ Done |
 | **10A** | Real external API configuration foundation | ✅ **Done** |
 | **10B** | France Travail real connector skeleton | ✅ **Done** |
-| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | 📅 Planned |
+| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | ✅ **Done** |
+| **10D** | Phase 10 closure documentation | ✅ **Done** |
+
+## Phase 10D — Closure & Backlog
+
+### Closure Statement
+
+Phase 10 is complete for the current MVP boundary. This phase safely introduced the architecture, configuration, and gating for real external API connectors — without changing production behaviour.
+
+| Item | Status |
+|------|--------|
+| Current production mode | `EXTERNAL_SOURCES_MODE=mock` |
+| France Travail live connector | Implemented but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid credentials |
+| Adzuna UK live connector | **Not implemented** — moved to backlog |
+| Freelancer real connector | **Not implemented** — moved to backlog |
+
+### Next Recommended Work
+
+The next product effort should focus on **import review / user workflow / MVP stabilization** rather than additional connectors:
+
+- Improve the import candidate review UX (batch actions, filtering, sorting)
+- Strengthen deduplication and merge workflows
+- Add analytics and reporting for imported opportunities
+- Stabilise the cockpit experience for daily operator use
+
+Adding new live connectors (Adzuna UK, Freelancer, or others) is deferred until:
+
+1. The current connector architecture has been validated in production-like conditions
+2. Operational credential management processes are established
+3. A clear business case exists for each additional source
+
+### Backlog
+
+The following items are **not in scope** for the current MVP and are moved to the project backlog:
+
+- **Optional future:** Adzuna UK live connector — real API integration for UK job aggregation
+- **Optional future:** France Travail production credential activation — switch from mock to live when credentials and operational readiness are confirmed
+- **Optional future:** Stronger import review status — enhanced review workflow with approvals, rejection reasons, bulk actions
+- **Optional future:** Duplicate hardening — improved fuzzy matching across SourceRecord, Company, and Opportunity
+- **Optional future:** Analytics/reporting — dashboards for import activity, source effectiveness, conversion funnel
+
+### Phase 10 Completion Checklist
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | Configuration foundation (settings, env vars, diagnostics) | ✅ Done |
+| 2 | France Travail connector foundation (`FranceTravailAPIClient`, exceptions, mapping) | ✅ Done |
+| 3 | Live gating (`_get_provider_for_mode()`, mode-aware dispatch) | ✅ Done |
+| 4 | Production mock safety preserved (`EXTERNAL_SOURCES_MODE=mock` default) | ✅ Done |
+| 5 | Runtime validation (provider diagnostics, gating smoke test, search regression, read-only, no DB mutation) | ✅ Done |
+| 6 | No real external API calls in production by default | ✅ Done |
+| 7 | No secrets committed (credentials read from environment only) | ✅ Done |
 
 ## Key Files
 

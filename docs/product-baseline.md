@@ -17,6 +17,8 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] AI-assisted message draft generation with human validation (mock_ai provider, provider abstraction, prompt builder, diagnostics, Cockpit UX, human review workflow)
 - [x] External opportunity sources foundation (Phase 9A — mock-only, france_travail, adzuna_uk, freelancer)
 - [x] External candidate controlled import (Phase 9B — SourceRecord, Company, Opportunity, duplicate prevention, provenance tracking)
+- [x] Real external API connector architecture (Phase 10 — configuration foundation, France Travail connector, live gating, mock-mode safety preserved)
+- [x] Imported opportunity review workflow (Phase 11A — imported_pending_review status, Cockpit visibility, status filtering)
 
 ## Planned (Future Phases)
 
@@ -25,7 +27,7 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - External data enrichment (Hunter, Dropcontact)
 - Company website scraping and analysis
 - LinkedIn opportunity discovery
-- Real external source connectors (Phase 9C/9D/9E)
+- Real external source connector activation (Adzuna UK, Freelancer — deferred; see Phase 10D backlog)
 - Email sending with tracking
 - OpenProject work package sync
 - Academy/Moodle API integration

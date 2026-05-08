@@ -22,7 +22,9 @@ Phase 9 adds the ability to discover and import external opportunities from publ
 | **9D** | SourceRecord / Import Provenance UX | ✅ Done |
 | **10A** | Real external API configuration foundation | ✅ Done (see phase-10 docs) |
 | **10B** | France Travail real connector skeleton | ✅ Done (see phase-10 docs) |
-| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | 📅 Planned |
+| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | ✅ Done (see phase-10 docs) |
+| **10D** | Phase 10 closure documentation | ✅ Done (see phase-10 docs) |
+| **11A** | Imported Opportunity Review Workflow — imported opportunities get `imported_pending_review` status, visible in Cockpit, filterable by status. Duplicate imports preserve existing status. | ✅ Done |
 
 ---
 
@@ -228,3 +230,50 @@ If parsing fails, linked IDs return `null`.
 - `frontend/cockpit/src/resources/sourceRecords/SourceRecordShow.tsx` — show view
 - `frontend/cockpit/src/App.tsx` — resource registration
 - `backend/tests/test_phase9d.py` — Phase 9D tests (21 tests)
+
+---
+
+## Phase 11A — Imported Opportunity Review Workflow
+
+### Purpose
+
+Imported external opportunities must be clearly identifiable as items waiting for human review before outreach or draft usage. This is an MVP stabilization step — not a new connector phase.
+
+### Changes
+
+- **New `OpportunityStatus.imported_pending_review`** enum value added to `backend/app/core/enums.py`
+- **`_create_opportunity()`** in `backend/app/services/external_sources.py` now sets status to `imported_pending_review` instead of `new`
+- **Duplicate imports** preserve the existing opportunity status (not overwritten)
+- **Scoring** does not auto-advance `imported_pending_review` opportunities (only `new` status is auto-advanced to `scored`)
+- **Status filtering** works via the existing `GET /api/v1/opportunities?status=imported_pending_review` API
+- **Cockpit UX** updated: `imported_pending_review` appears in all status choice lists (list, create, edit)
+
+### Review Workflow
+
+```
+Import → status=imported_pending_review
+              │
+              ▼
+       Human reviews opportunity
+              │
+              ├── Change status to "interesting" → proceed with scoring/draft
+              ├── Change status to "not_relevant" → discard
+              └── Keep as "imported_pending_review" → revisit later
+```
+
+### Key Design Decisions
+
+- No database migration required — the new enum value is stored as a string in the existing `opportunities.status` column
+- No new database columns or tables
+- `EXTERNAL_SOURCES_MODE=mock` remains the safe default
+- Adzuna UK and Freelancer live connectors are NOT activated
+- Real external API calls are NOT activated by default
+
+### Key Files
+
+- `backend/app/core/enums.py` — `OpportunityStatus.imported_pending_review`
+- `backend/app/services/external_sources.py` — `_create_opportunity()` uses `imported_pending_review`
+- `frontend/cockpit/src/resources/opportunities/OpportunityList.tsx` — status filter includes new value
+- `frontend/cockpit/src/resources/opportunities/OpportunityEdit.tsx` — status choices include new value
+- `frontend/cockpit/src/resources/opportunities/OpportunityCreate.tsx` — status choices include new value
+- `backend/tests/test_phase11a.py` — Phase 11A tests (new import, duplicate preservation, search read-only, Phase 9B/10C safety)

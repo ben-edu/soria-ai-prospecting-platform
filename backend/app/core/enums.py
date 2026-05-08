@@ -69,6 +69,7 @@ class OpportunityType(str, enum.Enum):
 
 class OpportunityStatus(str, enum.Enum):
     new = "new"
+    imported_pending_review = "imported_pending_review"
     to_analyze = "to_analyze"
     scored = "scored"
     interesting = "interesting"
