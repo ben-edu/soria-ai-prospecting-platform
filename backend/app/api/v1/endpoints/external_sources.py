@@ -108,6 +108,7 @@ def combined_search(
             query=query.strip(),
             location=location.strip() if location else None,
             limit=limit,
+            settings=app_settings,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -172,6 +173,7 @@ def single_provider_search(
             query=query.strip(),
             location=location.strip() if location else None,
             limit=limit,
+            settings=app_settings,
         )
     except ValueError as exc:
         raise HTTPException(

@@ -61,8 +61,19 @@ def list_external_source_providers(
     ]
 
 
-def get_external_source_provider(provider_name: str) -> "BaseExternalSourceProvider":
+def get_external_source_provider(
+    provider_name: str,
+    settings: Optional[Settings] = None,
+) -> "BaseExternalSourceProvider":
     """Resolve and return an external source provider instance by name.
+
+    Parameters
+    ----------
+    provider_name
+        Registered provider name.
+    settings
+        Optional Settings instance for real API configuration.
+        Passed to the provider constructor for live-mode routing.
 
     Raises ValueError if the provider name is not registered.
     """
@@ -72,7 +83,7 @@ def get_external_source_provider(provider_name: str) -> "BaseExternalSourceProvi
             f"Unknown external source provider: '{provider_name}'. "
             f"Available providers: [{available}]"
         )
-    return PROVIDER_REGISTRY[provider_name]()
+    return PROVIDER_REGISTRY[provider_name](settings=settings)
 
 
 def search_external_opportunities(
@@ -80,6 +91,7 @@ def search_external_opportunities(
     query: str,
     location: Optional[str] = None,
     limit: int = 10,
+    settings: Optional[Settings] = None,
 ) -> list[ExternalOpportunityCandidate]:
     """Search a single external source provider for opportunities.
 
@@ -93,6 +105,8 @@ def search_external_opportunities(
         Optional location filter.
     limit
         Maximum number of results (1-50).
+    settings
+        Optional Settings instance for live-mode routing.
 
     Returns
     -------
@@ -101,9 +115,10 @@ def search_external_opportunities(
     Raises
     ------
     ValueError
-        If *provider_name* is not registered.
+        If *provider_name* is not registered, or if a live provider
+        raises a controlled error.
     """
-    provider = get_external_source_provider(provider_name)
+    provider = get_external_source_provider(provider_name, settings=settings)
     return provider.search(query=query, location=location, limit=limit)
 
 
@@ -112,6 +127,7 @@ def search_multiple_external_sources(
     query: str,
     location: Optional[str] = None,
     limit: int = 10,
+    settings: Optional[Settings] = None,
 ) -> list[ExternalOpportunityCandidate]:
     """Search across multiple external source providers.
 
@@ -125,6 +141,8 @@ def search_multiple_external_sources(
         Optional location filter.
     limit
         Maximum results *per provider* (total = len(providers) * limit).
+    settings
+        Optional Settings instance for live-mode routing.
 
     Returns
     -------
@@ -137,6 +155,7 @@ def search_multiple_external_sources(
             query=query,
             location=location,
             limit=limit,
+            settings=settings,
         )
         results.extend(candidates)
     return results
@@ -169,6 +188,9 @@ class BaseExternalSourceProvider:
     supports_real_api: bool = False
     _credential_fields: list[str] = []
 
+    def __init__(self, settings: Optional[Settings] = None):
+        self._settings = settings
+
     @classmethod
     def check_credentials_configured(cls, settings: Settings) -> bool:
         """Return True if all required credential env vars have truthy values."""
@@ -192,19 +214,33 @@ class BaseExternalSourceProvider:
                 and credentials_configured
             )
 
+        # Determine if live mode was requested (even if is_mock is True)
+        live_requested = (
+            settings is not None
+            and settings.EXTERNAL_SOURCES_MODE != "mock"
+        ) if cls.supports_real_api else False
+
         # Compute safe_status / safe_message
         if cls.is_mock:
-            safe_status = "mock"
-            if cls.supports_real_api and credentials_configured:
+            if real_api_enabled:
+                safe_status = "ready"
+                safe_message = "Real API configured and ready."
+            elif live_requested and not credentials_configured:
+                safe_status = "missing_credentials"
+                safe_message = "Real API selected but credentials not configured."
+            elif cls.supports_real_api and credentials_configured:
+                safe_status = "mock"
                 safe_message = (
                     "Mock mode active. Real API credentials configured — "
                     "set EXTERNAL_SOURCES_MODE to enable."
                 )
             elif cls.supports_real_api:
+                safe_status = "mock"
                 safe_message = (
                     "Mock mode active. Real API credentials not configured."
                 )
             else:
+                safe_status = "mock"
                 safe_message = "Mock mode active. No real API available."
         elif not cls.supports_real_api:
             safe_status = "unsupported"
@@ -376,6 +412,26 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
         location: Optional[str] = None,
         limit: int = 10,
     ) -> list[ExternalOpportunityCandidate]:
+        # Phase 10C — live-mode routing
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.france_travail_client import (
+                        FranceTravailAPIClient,
+                        FranceTravailClientError,
+                    )
+                    api_client = FranceTravailAPIClient(settings=settings)
+                    return api_client.search_offers(
+                        query=query, location=location, limit=limit,
+                    )
+                except FranceTravailClientError as exc:
+                    raise ValueError(
+                        f"France Travail search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
+        # Default mock behavior (unchanged)
         candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
 
         if location:
