@@ -66,6 +66,117 @@ The top-level response also includes:
 | `"ready"` | Real API is configured and active | "Real API configured and ready." |
 | `"unsupported"` | No real API implementation for this provider | "Mock mode active. No real API available." |
 
+## Phase 10B — France Travail Real Connector Skeleton
+
+### Purpose
+
+Phase 10B adds a safe, dedicated France Travail API connector module that prepares the code architecture for a future real API integration — **without enabling real HTTP calls in normal runtime**.
+
+This phase introduces:
+
+1. **Dedicated connector module** (`backend/app/services/france_travail_client.py`) with a full `FranceTravailAPIClient` class
+2. **Custom exception hierarchy** for controlled failure modes
+3. **Testable methods** with injectable HTTP transport
+4. **No changes to mock mode behavior** — all providers still run in mock mode by default
+
+### Design Principles
+
+- **No real HTTP calls** — the connector exists but is never invoked during normal runtime
+- **No credentials required** — connector can be instantiated without settings; `is_ready()` returns `False` when config is missing
+- **Safe failure** — `validate_configuration()` raises controlled exceptions instead of failing at runtime
+- **Testable transport** — `search_offers` accepts an injectable `httpx.Client` for test mocking
+- **Backward compatible** — Phase 9A/9B/9C/9D/10A behavior is unchanged
+
+### Connector Module
+
+**File:** `backend/app/services/france_travail_client.py`
+
+#### Custom Exceptions
+
+| Exception | Parent | Raised When |
+|-----------|--------|-------------|
+| `FranceTravailClientError` | `Exception` | Base for all FT client errors |
+| `FranceTravailConfigurationError` | `FranceTravailClientError` | Required config (client_id/client_secret) is missing |
+| `FranceTravailAuthenticationError` | `FranceTravailClientError` | OAuth2 token acquisition fails |
+| `FranceTravailAPIError` | `FranceTravailClientError` | Search API returns an error |
+
+#### FranceTravailAPIClient Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `is_ready()` | `bool` | True if client_id and client_secret are both set |
+| `validate_configuration()` | `bool` | Raises `FranceTravailConfigurationError` if config is missing |
+| `build_token_request_payload()` | `dict` | Builds OAuth2 client credentials payload (no side effects, no logging) |
+| `build_search_params(query, location, limit)` | `dict` | Maps SORIA params to France Travail API fields (`motsCles`, `lieuTravail.libelle`, `nombreOffres`) |
+| `normalize_offer(raw_offer)` | `ExternalOpportunityCandidate` | Maps France Travail API response fields to SORIA schema |
+| `search_offers(query, location, limit, http_client)` | `list[ExternalOpportunityCandidate]` | Full search flow: validate → token → search → normalize. HTTP transport is injectable via `http_client` parameter. |
+
+#### API Field Mapping (normalize_offer)
+
+| France Travail Field | SORIA Field | Notes |
+|---------------------|-------------|-------|
+| `id` | `external_id` | |
+| `intitule` | `title` | |
+| `entreprise.nom` | `company_name` | Nested object |
+| `description` | `description` | |
+| `lieuTravail.libelle` | `location` | Nested object |
+| `typeContrat` | `contract_type` | Falls back to `typeContratLibelle` |
+| `dateCreation` | `source_published_at` | ISO 8601 parsed |
+| `origineOffre.urlOrigine` | `source_url` | Nested object |
+
+#### Search Parameter Mapping (build_search_params)
+
+| SORIA Parameter | France Travail API Parameter |
+|----------------|------------------------------|
+| `query` | `motsCles` |
+| `location` | `lieuTravail.libelle` |
+| `limit` | `nombreOffres` (capped 1-50) |
+
+### Configuration
+
+Two new optional settings added to `backend/app/core/config.py`:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `FRANCE_TRAVAIL_TOKEN_URL` | `Optional[str]` | `None` (→ `https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=partenaire`) | France Travail OAuth2 token endpoint |
+| `FRANCE_TRAVAIL_API_BASE_URL` | `Optional[str]` | `None` (→ `https://api.pole-emploi.fr/partenaire/offresdemploi/v2`) | France Travail API base URL |
+
+URLs default to the known France Travail (ex-Pôle emploi) API endpoints when not overridden.
+
+### Safety
+
+- **`search_offers` calls `validate_configuration()` first** — missing credentials raise `FranceTravailConfigurationError` before any HTTP call
+- **`search_offers` is never called by default** — the provider system still uses `FranceTravailMockProvider` while `EXTERNAL_SOURCES_MODE=mock`
+- **No secrets in error messages** — exception messages reference env var names, not values
+- **No real HTTP calls in tests** — the `http_client` parameter allows full mocking
+
+### Tests
+
+**File:** `backend/tests/test_phase10b.py`
+
+| Test Class | Coverage |
+|------------|----------|
+| `TestConnectorInstantiation` | Connector can be instantiated with/without settings, `is_ready()` reflects credential state |
+| `TestValidateConfiguration` | `validate_configuration()` raises safely when config is missing; messages don't expose values |
+| `TestBuildTokenRequestPayload` | Token payload builder returns expected dict with no side effects |
+| `TestBuildSearchParams` | Search params builder maps query/location/limit to France Travail fields correctly |
+| `TestNormalizeOffer` | Full offer, minimal offer, empty dict, missing nested objects, bad dates — all handled gracefully |
+| `TestSearchOffersWithMockedTransport` | `search_offers` uses injected HTTP client; errors raise appropriate exceptions |
+| `TestMockModeSearchUnchanged` | Single provider search still returns mock data |
+| `TestMockModeCombinedSearchUnchanged` | Combined search still works |
+| `TestMockModeImportUnchanged` | Import-candidate still works |
+| `TestMockModeDiagnosticsUnchanged` | Providers diagnostics still returns all providers with Phase 10A fields |
+| `TestMockModeNoDbMutation` | Read-only endpoints do not mutate the database |
+| `TestExistingProvidersNotBroken` | Provider registry and external_sources module are not affected |
+
+### Future Phase 10C
+
+Phase 10C will wire the real France Travail search behind `EXTERNAL_SOURCES_MODE` with strict safety checks:
+- When `EXTERNAL_SOURCES_MODE != "mock"`, `FranceTravailAPIClient` replaces `FranceTravailMockProvider` for search
+- Credentials validation before any live call
+- Rate limiting, timeout handling, and circuit breaker
+- Audit logging for all real API calls
+
 ## Diagnostics Logic
 
 The `credentials_configured` check requires **all** of a provider's credential fields to have truthy values. If any are `None` or empty, credentials are considered not configured.
@@ -86,13 +197,16 @@ In Phase 10A, `real_api_enabled` is always `False` because the default mode is `
 | **9C** | Cockpit external source search and import UX | ✅ Done |
 | **9D** | SourceRecord / Import Provenance UX | ✅ Done |
 | **10A** | Real external API configuration foundation | ✅ **Done** |
-| **9E** | Real connector implementations for each provider | 📅 Planned |
+| **10B** | France Travail real connector skeleton | ✅ **Done** |
+| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | 📅 Planned |
 
 ## Key Files
 
 - `backend/app/core/config.py` — Settings with external source configuration
 - `backend/app/schemas/external_source.py` — `ExternalSourceProviderInfo` with diagnostics fields
 - `backend/app/services/external_sources.py` — `BaseExternalSourceProvider` with `supports_real_api`, `_credential_fields`, `check_credentials_configured()`, updated `get_provider_info()`
+- `backend/app/services/france_travail_client.py` — France Travail real API connector skeleton (Phase 10B)
 - `backend/app/api/v1/endpoints/external_sources.py` — Updated `GET /providers` endpoint
 - `backend/.env.example` — Documented optional env vars
 - `backend/tests/test_phase10a.py` — Phase 10A tests
+- `backend/tests/test_phase10b.py` — Phase 10B tests

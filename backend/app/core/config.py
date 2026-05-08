@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     EXTERNAL_SOURCES_MODE: str = "mock"
     FRANCE_TRAVAIL_CLIENT_ID: Optional[str] = None
     FRANCE_TRAVAIL_CLIENT_SECRET: Optional[str] = None
+    FRANCE_TRAVAIL_TOKEN_URL: Optional[str] = None
+    FRANCE_TRAVAIL_API_BASE_URL: Optional[str] = None
     ADZUNA_APP_ID: Optional[str] = None
     ADZUNA_APP_KEY: Optional[str] = None
     EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS: int = 10
