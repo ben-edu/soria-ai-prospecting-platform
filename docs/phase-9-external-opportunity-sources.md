@@ -20,7 +20,9 @@ Phase 9 adds the ability to discover and import external opportunities from publ
 | **9B** | Import candidates into `SourceRecord`, `Company`, and `Opportunity` | ✅ Done |
 | **9C** | Cockpit external source search and import UX | ✅ Done |
 | **9D** | SourceRecord / Import Provenance UX | ✅ Done |
-| **9E** | Real connector implementations for each provider | 📅 Planned |
+| **10A** | Real external API configuration foundation | ✅ Done (see phase-10 docs) |
+| **10B** | France Travail real connector skeleton | ✅ Done (see phase-10 docs) |
+| **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | 📅 Planned |
 
 ---
 
