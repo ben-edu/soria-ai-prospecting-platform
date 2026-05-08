@@ -2,12 +2,14 @@
 
 Phase 9A — External Opportunity Sources Foundation.
 Phase 9B — Import External Candidate into SourceRecord + Company + Opportunity.
+Phase 10A — Real External API Configuration Foundation (diagnostics + settings).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.api.deps import get_db
+from app.core.config import settings as app_settings
 from app.schemas.external_source import (
     ExternalOpportunityCandidate,
     ExternalOpportunitySearchResponse,
@@ -36,16 +38,33 @@ router = APIRouter()
     response_model=ExternalSourceDiagnosticsResponse,
 )
 def get_providers():
-    """List all registered external source providers with diagnostics."""
-    providers = list_external_source_providers()
+    """List all registered external source providers with diagnostics.
+
+    Phase 10A adds per-provider diagnostics fields:
+    - supports_real_api, credentials_configured, real_api_enabled
+    - safe_status, safe_message
+    """
+    providers = list_external_source_providers(settings=app_settings)
     enabled = get_enabled_provider_names()
+    mock_only = all(p.is_mock for p in providers)
+
+    if app_settings.EXTERNAL_SOURCES_MODE == "mock":
+        message = (
+            f"Mode: mock. All {len(providers)} providers running in mock mode. "
+            "No real external API calls are made."
+        )
+    else:
+        message = (
+            f"Mode: {app_settings.EXTERNAL_SOURCES_MODE}. "
+            f"Real API mode active for {sum(1 for p in providers if p.real_api_enabled)} provider(s)."
+        )
+
     return ExternalSourceDiagnosticsResponse(
         providers=providers,
         enabled_providers=enabled,
-        mock_only=True,
-        message="Phase 9A — All providers are mocks. "
-        "No real external API calls are made. "
-        "Credentials are not required.",
+        mock_only=mock_only,
+        mode=app_settings.EXTERNAL_SOURCES_MODE,
+        message=message,
     )
 
 

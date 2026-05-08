@@ -1,6 +1,7 @@
 """External opportunity source providers and service layer.
 
 Phase 9A — External Opportunity Sources Foundation.
+Phase 10A — Real External API Configuration Foundation (diagnostics + settings).
 
 All providers are deterministic mocks. No real external API calls.
 """
@@ -10,6 +11,7 @@ from typing import Optional
 
 from sqlmodel import Session
 
+from app.core.config import Settings
 from app.core.enums import (
     CompanyStatus,
     OpportunityPriority,
@@ -41,10 +43,20 @@ def register_external_source(name: str):
     return wrapper
 
 
-def list_external_source_providers() -> list[ExternalSourceProviderInfo]:
-    """Return info for every registered external source provider."""
+def list_external_source_providers(
+    settings: Optional[Settings] = None,
+) -> list[ExternalSourceProviderInfo]:
+    """Return info for every registered external source provider.
+
+    Parameters
+    ----------
+    settings
+        Optional Settings instance. When provided, diagnostics fields
+        (*credentials_configured*, *real_api_enabled*, *safe_status*,
+        *safe_message*) are computed from the current configuration.
+    """
     return [
-        cls.get_provider_info()
+        cls.get_provider_info(settings=settings)
         for cls in PROVIDER_REGISTRY.values()
     ]
 
@@ -153,8 +165,57 @@ class BaseExternalSourceProvider:
     description: str = ""
     language: str = ""
 
+    # Phase 10A — real API configuration
+    supports_real_api: bool = False
+    _credential_fields: list[str] = []
+
     @classmethod
-    def get_provider_info(cls) -> ExternalSourceProviderInfo:
+    def check_credentials_configured(cls, settings: Settings) -> bool:
+        """Return True if all required credential env vars have truthy values."""
+        return all(
+            getattr(settings, field, None)
+            for field in cls._credential_fields
+        )
+
+    @classmethod
+    def get_provider_info(
+        cls,
+        settings: Optional[Settings] = None,
+    ) -> ExternalSourceProviderInfo:
+        credentials_configured = False
+        real_api_enabled = False
+
+        if settings is not None and cls.supports_real_api:
+            credentials_configured = cls.check_credentials_configured(settings)
+            real_api_enabled = (
+                settings.EXTERNAL_SOURCES_MODE != "mock"
+                and credentials_configured
+            )
+
+        # Compute safe_status / safe_message
+        if cls.is_mock:
+            safe_status = "mock"
+            if cls.supports_real_api and credentials_configured:
+                safe_message = (
+                    "Mock mode active. Real API credentials configured — "
+                    "set EXTERNAL_SOURCES_MODE to enable."
+                )
+            elif cls.supports_real_api:
+                safe_message = (
+                    "Mock mode active. Real API credentials not configured."
+                )
+            else:
+                safe_message = "Mock mode active. No real API available."
+        elif not cls.supports_real_api:
+            safe_status = "unsupported"
+            safe_message = "No real API implementation."
+        elif not credentials_configured:
+            safe_status = "missing_credentials"
+            safe_message = "Real API selected but credentials not configured."
+        else:
+            safe_status = "ready"
+            safe_message = "Real API configured and ready."
+
         return ExternalSourceProviderInfo(
             provider=cls.provider,
             label=cls.label,
@@ -164,6 +225,11 @@ class BaseExternalSourceProvider:
             is_mock=cls.is_mock,
             requires_credentials=cls.requires_credentials,
             description=cls.description,
+            supports_real_api=cls.supports_real_api,
+            credentials_configured=credentials_configured,
+            real_api_enabled=real_api_enabled,
+            safe_status=safe_status,
+            safe_message=safe_message,
         )
 
     def search(
@@ -215,6 +281,8 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
     source_kind = "job"
     description = "Offres d'emploi via France Travail (Pôle emploi)"
     language = "fr"
+    supports_real_api = True
+    _credential_fields = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"]
 
     _MOCK_CANDIDATES: list[dict] = [
         {
@@ -357,6 +425,8 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
     source_kind = "job"
     description = "UK job listings via Adzuna"
     language = "en"
+    supports_real_api = True
+    _credential_fields = ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"]
 
     _MOCK_CANDIDATES: list[dict] = [
         {

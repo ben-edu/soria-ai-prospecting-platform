@@ -2,6 +2,7 @@
 
 Phase 9A — External Opportunity Sources Foundation.
 Phase 9B — Import External Candidate into SourceRecord + Company + Opportunity.
+Phase 10A — Real External API Configuration Foundation.
 """
 
 from datetime import datetime
@@ -11,7 +12,14 @@ from pydantic import BaseModel
 
 
 class ExternalSourceProviderInfo(BaseModel):
-    """Information about a single external source provider."""
+    """Information about a single external source provider.
+
+    Phase 10A adds diagnostics fields for real API configuration:
+    - supports_real_api: whether a real API connector is planned
+    - credentials_configured: whether required credentials are set in env
+    - real_api_enabled: whether real API mode is active
+    - safe_status / safe_message: human-readable safety summary
+    """
 
     provider: str
     label: str
@@ -21,6 +29,13 @@ class ExternalSourceProviderInfo(BaseModel):
     is_mock: bool
     requires_credentials: bool
     description: str
+
+    # Phase 10A — real API configuration diagnostics
+    supports_real_api: bool = False
+    credentials_configured: bool = False
+    real_api_enabled: bool = False
+    safe_status: str = "mock"
+    safe_message: str = ""
 
 
 class ExternalOpportunityCandidate(BaseModel):
@@ -60,11 +75,15 @@ class ExternalOpportunitySearchResponse(BaseModel):
 
 
 class ExternalSourceDiagnosticsResponse(BaseModel):
-    """Diagnostics response listing available external source providers."""
+    """Diagnostics response listing available external source providers.
+
+    Phase 10A adds *mode* to reflect the current EXTERNAL_SOURCES_MODE setting.
+    """
 
     providers: list[ExternalSourceProviderInfo]
     enabled_providers: list[str]
     mock_only: bool
+    mode: str = "mock"
     message: str
 
 
