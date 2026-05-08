@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +23,16 @@ class Settings(BaseSettings):
     AI_DRAFT_PROMPT_PROFILE: str = "prospecting_fr_v1"
     AI_DRAFT_MODEL_NAME: str = "mock-soria-v1"
     AI_DRAFT_PROMPT_VERSION: str = "ai-draft-v1"
+
+    # ------------------------------------------------------------------
+    # External source API configuration (Phase 10A)
+    # ------------------------------------------------------------------
+    EXTERNAL_SOURCES_MODE: str = "mock"
+    FRANCE_TRAVAIL_CLIENT_ID: Optional[str] = None
+    FRANCE_TRAVAIL_CLIENT_SECRET: Optional[str] = None
+    ADZUNA_APP_ID: Optional[str] = None
+    ADZUNA_APP_KEY: Optional[str] = None
+    EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS: int = 10
 
 
 settings = Settings()
