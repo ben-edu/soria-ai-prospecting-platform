@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   DateField,
   EditButton,
+  FunctionField,
   ListButton,
   ReferenceField,
   Show,
@@ -670,6 +671,28 @@ const OpportunityActions = () => {
   );
 };
 
+const STATUS_CHOICES = [
+  { id: "imported_pending_review", name: "Imported (Pending Review)" },
+  { id: "new", name: "New" },
+  { id: "to_analyze", name: "To Analyze" },
+  { id: "scored", name: "Scored" },
+  { id: "interesting", name: "Interesting" },
+  { id: "not_relevant", name: "Not Relevant" },
+  { id: "draft_needed", name: "Draft Needed" },
+  { id: "contact_to_find", name: "Contact To Find" },
+  { id: "contact_found", name: "Contact Found" },
+  { id: "draft_ready", name: "Draft Ready" },
+  { id: "waiting_validation", name: "Waiting Validation" },
+  { id: "approved", name: "Approved" },
+  { id: "sent", name: "Sent" },
+  { id: "follow_up_needed", name: "Follow-Up Needed" },
+  { id: "response_received", name: "Response Received" },
+  { id: "meeting_scheduled", name: "Meeting Scheduled" },
+  { id: "converted", name: "Converted" },
+  { id: "lost", name: "Lost" },
+  { id: "closed", name: "Closed" },
+];
+
 const ShowActions = () => (
   <TopToolbar>
     <ListButton />
@@ -710,7 +733,14 @@ export const OpportunityShow = () => (
       <DateField source="source_published_at" showTime emptyText="N/A" />
       <TextField source="location" />
       <TextField source="language" />
-      <TextField source="status" />
+      <FunctionField
+        source="status"
+        label="Status"
+        render={(record: { status?: string }) => {
+          const choice = STATUS_CHOICES.find((c) => c.id === record.status);
+          return choice?.name ?? record.status;
+        }}
+      />
       <TextField source="priority" />
       <TextField source="score" emptyText="N/A" />
       <TextField source="recommended_landing_page" />

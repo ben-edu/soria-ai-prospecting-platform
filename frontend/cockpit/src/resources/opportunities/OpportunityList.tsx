@@ -1,6 +1,7 @@
 import {
   Datagrid,
   DateField,
+  FunctionField,
   List,
   NumberInput,
   ReferenceField,
@@ -8,6 +9,7 @@ import {
   TextField,
   TextInput,
 } from "react-admin";
+import { Chip } from "@mui/material";
 
 const OPPORTUNITY_TYPE_CHOICES = [
   { id: "formation", name: "Formation" },
@@ -24,15 +26,15 @@ const OPPORTUNITY_TYPE_CHOICES = [
 ];
 
 const STATUS_CHOICES = [
-  { id: "new", name: "New" },
   { id: "imported_pending_review", name: "Imported (Pending Review)" },
+  { id: "new", name: "New" },
   { id: "to_analyze", name: "To Analyze" },
   { id: "scored", name: "Scored" },
   { id: "interesting", name: "Interesting" },
   { id: "not_relevant", name: "Not Relevant" },
+  { id: "draft_needed", name: "Draft Needed" },
   { id: "contact_to_find", name: "Contact To Find" },
   { id: "contact_found", name: "Contact Found" },
-  { id: "draft_needed", name: "Draft Needed" },
   { id: "draft_ready", name: "Draft Ready" },
   { id: "waiting_validation", name: "Waiting Validation" },
   { id: "approved", name: "Approved" },
@@ -84,7 +86,24 @@ export const OpportunityList = () => (
       <ReferenceField source="company_id" reference="companies" link="show" />
       <ReferenceField source="contact_id" reference="contacts" link="show" />
       <TextField source="opportunity_type" />
-      <TextField source="status" />
+      <FunctionField
+        source="status"
+        label="Status"
+        sortable={false}
+        render={(record: { status?: string }) => {
+          const choice = STATUS_CHOICES.find((c) => c.id === record.status);
+          const label = choice?.name ?? record.status ?? "";
+          const isPending = record.status === "imported_pending_review";
+          return (
+            <Chip
+              label={label}
+              color={isPending ? "warning" : "default"}
+              size="small"
+              variant={isPending ? "filled" : "outlined"}
+            />
+          );
+        }}
+      />
       <TextField source="priority" />
       <TextField source="score" />
       <TextField source="language" />

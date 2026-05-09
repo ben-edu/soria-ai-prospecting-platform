@@ -19,6 +19,7 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] External candidate controlled import (Phase 9B — SourceRecord, Company, Opportunity, duplicate prevention, provenance tracking)
 - [x] Real external API connector architecture (Phase 10 — configuration foundation, France Travail connector, live gating, mock-mode safety preserved)
 - [x] Imported opportunity review workflow (Phase 11A — imported_pending_review status, Cockpit visibility, status filtering)
+- [x] Imported opportunity review UX (Phase 11B — human-readable status labels, warning badge in list, status choices reordered for review workflow)
 
 ## Planned (Future Phases)
 

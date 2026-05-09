@@ -37,15 +37,15 @@ const SOURCE_CHOICES = [
 ];
 
 const STATUS_CHOICES = [
-  { id: "new", name: "New" },
   { id: "imported_pending_review", name: "Imported (Pending Review)" },
+  { id: "new", name: "New" },
   { id: "to_analyze", name: "To Analyze" },
   { id: "scored", name: "Scored" },
   { id: "interesting", name: "Interesting" },
   { id: "not_relevant", name: "Not Relevant" },
+  { id: "draft_needed", name: "Draft Needed" },
   { id: "contact_to_find", name: "Contact To Find" },
   { id: "contact_found", name: "Contact Found" },
-  { id: "draft_needed", name: "Draft Needed" },
   { id: "draft_ready", name: "Draft Ready" },
   { id: "waiting_validation", name: "Waiting Validation" },
   { id: "approved", name: "Approved" },
