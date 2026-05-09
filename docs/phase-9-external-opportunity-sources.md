@@ -24,6 +24,7 @@ Phase 9 adds the ability to discover and import external opportunities from publ
 | **10B** | France Travail real connector skeleton | ✅ Done (see phase-10 docs) |
 | **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | ✅ Done (see phase-10 docs) |
 | **10D** | Phase 10 closure documentation | ✅ Done (see phase-10 docs) |
+| **10E** | Adzuna UK real connector — `AdzunaUKAPIClient`, exceptions, search mapping, live-mode gating | ✅ Done (see phase-10 docs) |
 | **11A** | Imported Opportunity Review Workflow — imported opportunities get `imported_pending_review` status, visible in Cockpit, filterable by status. Duplicate imports preserve existing status. | ✅ Done |
 | **11B** | Imported Opportunity Review UX — status labels render human-readable text in list/show views, `imported_pending_review` highlighted with warning badge in list, status filter choices reordered to group review workflow path (`imported_pending_review` → `interesting` → `not_relevant` → `draft_needed`). | ✅ Done |
 

@@ -27,8 +27,8 @@ class TestDefaultConfiguration:
     def test_default_credentials_are_none(self):
         assert settings.FRANCE_TRAVAIL_CLIENT_ID is None
         assert settings.FRANCE_TRAVAIL_CLIENT_SECRET is None
-        assert settings.ADZUNA_APP_ID is None
-        assert settings.ADZUNA_APP_KEY is None
+        assert settings.ADZUNA_UK_APP_ID is None
+        assert settings.ADZUNA_UK_APP_KEY is None
 
     def test_default_http_timeout(self):
         assert settings.EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS == 10
@@ -120,18 +120,18 @@ class TestCredentialsConfigured:
             settings.FRANCE_TRAVAIL_CLIENT_SECRET = original_secret
 
     def test_adzuna_credentials_configured(self, client):
-        original_id = settings.ADZUNA_APP_ID
-        original_key = settings.ADZUNA_APP_KEY
-        settings.ADZUNA_APP_ID = "test-app-id"
-        settings.ADZUNA_APP_KEY = "test-app-key"
+        original_id = settings.ADZUNA_UK_APP_ID
+        original_key = settings.ADZUNA_UK_APP_KEY
+        settings.ADZUNA_UK_APP_ID = "test-app-id"
+        settings.ADZUNA_UK_APP_KEY = "test-app-key"
         try:
             resp = client.get("/api/v1/external-sources/providers")
             providers = {p["provider"]: p for p in resp.json()["providers"]}
             au = providers["adzuna_uk"]
             assert au["credentials_configured"] is True
         finally:
-            settings.ADZUNA_APP_ID = original_id
-            settings.ADZUNA_APP_KEY = original_key
+            settings.ADZUNA_UK_APP_ID = original_id
+            settings.ADZUNA_UK_APP_KEY = original_key
 
     def test_real_api_not_enabled_in_mock_mode_even_with_credentials(self, client):
         original_mode = settings.EXTERNAL_SOURCES_MODE
@@ -428,8 +428,8 @@ class TestServiceLayer:
 
         au_cls = PROVIDER_REGISTRY["adzuna_uk"]
         assert au_cls._credential_fields == [
-            "ADZUNA_APP_ID",
-            "ADZUNA_APP_KEY",
+            "ADZUNA_UK_APP_ID",
+            "ADZUNA_UK_APP_KEY",
         ]
 
     def test_freelancer_no_credential_fields(self):

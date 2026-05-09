@@ -482,7 +482,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
     description = "UK job listings via Adzuna"
     language = "en"
     supports_real_api = True
-    _credential_fields = ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"]
+    _credential_fields = ["ADZUNA_UK_APP_ID", "ADZUNA_UK_APP_KEY"]
 
     _MOCK_CANDIDATES: list[dict] = [
         {
@@ -577,6 +577,26 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
         location: Optional[str] = None,
         limit: int = 10,
     ) -> list[ExternalOpportunityCandidate]:
+        # Phase 10E — live-mode routing
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.adzuna_uk_client import (
+                        AdzunaUKAPIClient,
+                        AdzunaUKClientError,
+                    )
+                    api_client = AdzunaUKAPIClient(settings=settings)
+                    return api_client.search_jobs(
+                        query=query, location=location, limit=limit,
+                    )
+                except AdzunaUKClientError as exc:
+                    raise ValueError(
+                        f"Adzuna UK search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
+        # Default mock behavior (unchanged)
         candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
 
         if location:

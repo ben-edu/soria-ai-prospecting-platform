@@ -642,4 +642,4 @@ class TestServiceLayer:
         assert cls.supports_real_api is True
         assert cls.is_mock is True
         # No live search routing for adzuna in Phase 10C
-        assert cls._credential_fields == ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"]
+        assert cls._credential_fields == ["ADZUNA_UK_APP_ID", "ADZUNA_UK_APP_KEY"]

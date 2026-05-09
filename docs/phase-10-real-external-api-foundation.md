@@ -26,8 +26,9 @@ All settings live in `backend/app/core/config.py` (pydantic-settings `Settings` 
 | `EXTERNAL_SOURCES_MODE` | `str` | `"mock"` | Operation mode: `"mock"` or (future) `"live"` |
 | `FRANCE_TRAVAIL_CLIENT_ID` | `Optional[str]` | `None` | France Travail API client ID |
 | `FRANCE_TRAVAIL_CLIENT_SECRET` | `Optional[str]` | `None` | France Travail API client secret |
-| `ADZUNA_APP_ID` | `Optional[str]` | `None` | Adzuna API application ID |
-| `ADZUNA_APP_KEY` | `Optional[str]` | `None` | Adzuna API application key |
+| `ADZUNA_UK_APP_ID` | `Optional[str]` | `None` | Adzuna UK API application ID |
+| `ADZUNA_UK_APP_KEY` | `Optional[str]` | `None` | Adzuna UK API application key |
+| `ADZUNA_UK_API_BASE_URL` | `Optional[str]` | `None` (→ `https://api.adzuna.com/v1/api/jobs/gb`) | Adzuna UK API base URL |
 | `EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS` | `int` | `10` | HTTP timeout for real API calls (not used in mock mode) |
 
 ### Provider Credential Mapping
@@ -35,7 +36,7 @@ All settings live in `backend/app/core/config.py` (pydantic-settings `Settings` 
 | Provider | Required Settings |
 |----------|-----------------|
 | `france_travail` | `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET` |
-| `adzuna_uk` | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
+| `adzuna_uk` | `ADZUNA_UK_APP_ID`, `ADZUNA_UK_APP_KEY` |
 | `freelancer` | None (no real API planned) |
 
 ## Diagnostics Fields
@@ -184,6 +185,104 @@ Phase 10C wires the real France Travail search behind `EXTERNAL_SOURCES_MODE` wi
 - `backend/app/services/france_travail_client.py` — `FranceTravailAPIClient.search_offers()` invoked when live
 - `backend/tests/test_phase10c.py` — Phase 10C tests (gating smoke test, mock-mode regression, provider diagnostics, read-only, no DB mutation)
 
+### Phase 10E — Adzuna UK Real Connector
+
+Phase 10E adds a real Adzuna UK API connector with live-mode gating:
+
+1. **Dedicated connector module** (`backend/app/services/adzuna_uk_client.py`) with `AdzunaUKAPIClient` class
+2. **Custom exception hierarchy**: `AdzunaUKClientError` → `AdzunaUKConfigurationError`, `AdzunaUKAPIError`
+3. **Live-mode routing** in `AdzunaUkMockProvider.search()` — routes to `AdzunaUKAPIClient` when `EXTERNAL_SOURCES_MODE != "mock"` and credentials are present
+4. **Safe fallback** — when credentials are missing in live mode, returns mock data
+
+#### Design Principles
+
+- **No OAuth2** — Adzuna uses `app_id` + `app_key` as query parameters on every request (simpler than France Travail)
+- **No token acquisition step** — direct API calls with authentication in query params
+- **Same safety patterns** — injectable HTTP transport, `validate_configuration()` before search, no secrets in error messages
+- **Backward compatible** — Phase 9A/9B/10A/10B/10C behavior is unchanged
+
+#### AdzunaUKAPIClient Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `is_ready()` | `bool` | True if app_id and app_key are both set |
+| `validate_configuration()` | `bool` | Raises `AdzunaUKConfigurationError` if config is missing |
+| `build_search_params(query, location, limit)` | `dict` | Maps SORIA params to Adzuna API fields (`q`, `where`, `max_results`) |
+| `normalize_job(raw_job)` | `ExternalOpportunityCandidate` | Maps Adzuna API response fields to SORIA schema |
+| `search_jobs(query, location, limit, http_client)` | `list[ExternalOpportunityCandidate]` | Full search flow: validate → search → normalize. HTTP transport is injectable via `http_client` parameter. |
+
+#### API Field Mapping (normalize_job)
+
+| Adzuna UK Field | SORIA Field | Notes |
+|----------------|-------------|-------|
+| `id` | `external_id` | Converted to string (Adzuna returns int) |
+| `title` | `title` | |
+| `company.display_name` | `company_name` | Nested object |
+| `location.display_name` | `location` | Nested object |
+| `description` | `description` | |
+| `created` | `source_published_at` | ISO 8601 parsed |
+| `redirect_url` | `source_url` | |
+| `contract_type` | `contract_type` | |
+| `salary_min` | `budget_min` | |
+| `salary_max` | `budget_max` | |
+| `salary_currency` | `budget_currency` | |
+| `category.label` | `tags` | |
+
+#### Search Parameter Mapping (build_search_params)
+
+| SORIA Parameter | Adzuna UK API Parameter |
+|----------------|------------------------|
+| `query` | `q` |
+| `location` | `where` |
+| `limit` | `max_results` (capped 1-50) |
+| (auth) | `app_id` + `app_key` |
+
+#### Configuration
+
+Two new required settings and one optional setting added to `backend/app/core/config.py`:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `ADZUNA_UK_APP_ID` | `Optional[str]` | `None` | Adzuna UK API application ID |
+| `ADZUNA_UK_APP_KEY` | `Optional[str]` | `None` | Adzuna UK API application key |
+| `ADZUNA_UK_API_BASE_URL` | `Optional[str]` | `None` (→ `https://api.adzuna.com/v1/api/jobs/gb`) | Adzuna UK API base URL |
+
+#### Exceptions
+
+| Exception | Parent | Raised When |
+|-----------|--------|-------------|
+| `AdzunaUKClientError` | `Exception` | Base for all Adzuna UK client errors |
+| `AdzunaUKConfigurationError` | `AdzunaUKClientError` | Required config (app_id/app_key) is missing |
+| `AdzunaUKAPIError` | `AdzunaUKClientError` | Search API returns an error |
+
+#### Safety
+
+- **`search_jobs` calls `validate_configuration()` first** — missing credentials raise `AdzunaUKConfigurationError` before any HTTP call
+- **`search_jobs` is never called by default** — the provider system still uses `AdzunaUkMockProvider` while `EXTERNAL_SOURCES_MODE=mock`
+- **No secrets in error messages** — exception messages reference env var names, not values
+- **No real HTTP calls in tests** — the `http_client` parameter allows full mocking
+- **No OAuth2** — simpler auth model reduces attack surface
+
+#### Tests
+
+**File:** `backend/tests/test_phase10e.py`
+
+| Test Class | Coverage |
+|------------|----------|
+| `TestConnectorInstantiation` | Connector can be instantiated with/without settings, `is_ready()` reflects credential state |
+| `TestValidateConfiguration` | `validate_configuration()` raises safely when config is missing; messages don't expose values |
+| `TestBuildSearchParams` | Search params builder maps query/location/limit to Adzuna fields correctly |
+| `TestNormalizeJob` | Full job, minimal job, empty dict, missing nested objects, bad dates, salary fields — all handled gracefully |
+| `TestSearchJobsWithMockedTransport` | `search_jobs` uses injected HTTP client; errors raise appropriate exceptions |
+| `TestAdzunaLiveModeWithCredentials` | Live mode with credentials routes to `AdzunaUKAPIClient`; params passed correctly |
+| `TestAdzunaLiveModeMissingCredentials` | Live mode without credentials falls back to mock; no real client call |
+| `TestAdzunaClientErrorHandling` | `AdzunaUKClientError` subclasses become safe HTTP 400 |
+| `TestMockModeUnchanged` | Mock search, location filter, limit — all unchanged |
+| `TestCombinedSearch` | Combined search with live adzuna + mock others; missing creds all mock |
+| `TestProviderDiagnostics` | Diagnostics reflect Adzuna UK configuration state |
+| `TestNoDatabaseMutation` | Read-only endpoints do not mutate the database |
+| `TestServiceLayer` | Provider registry unchanged; FT and Freelancer unchanged |
+
 ## Diagnostics Logic
 
 The `credentials_configured` check requires **all** of a provider's credential fields to have truthy values. If any are `None` or empty, credentials are considered not configured.
@@ -207,6 +306,7 @@ In Phase 10A, `real_api_enabled` is always `False` because the default mode is `
 | **10B** | France Travail real connector skeleton | ✅ **Done** |
 | **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | ✅ **Done** |
 | **10D** | Phase 10 closure documentation | ✅ **Done** |
+| **10E** | Adzuna UK real connector | ✅ **Done** |
 
 ## Phase 10D — Closure & Backlog
 
@@ -218,7 +318,7 @@ Phase 10 is complete for the current MVP boundary. This phase safely introduced 
 |------|--------|
 | Current production mode | `EXTERNAL_SOURCES_MODE=mock` |
 | France Travail live connector | Implemented but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid credentials |
-| Adzuna UK live connector | **Not implemented** — moved to backlog |
+| Adzuna UK live connector | **Implemented** but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid UK credentials |
 | Freelancer real connector | **Not implemented** — moved to backlog |
 
 ### Next Recommended Work
@@ -240,8 +340,8 @@ Adding new live connectors (Adzuna UK, Freelancer, or others) is deferred until:
 
 The following items are **not in scope** for the current MVP and are moved to the project backlog:
 
-- **Optional future:** Adzuna UK live connector — real API integration for UK job aggregation
 - **Optional future:** France Travail production credential activation — switch from mock to live when credentials and operational readiness are confirmed
+- **Optional future:** Freelancer live connector — real API integration for global freelance marketplace
 - **Optional future:** Stronger import review status — enhanced review workflow with approvals, rejection reasons, bulk actions
 - **Optional future:** Duplicate hardening — improved fuzzy matching across SourceRecord, Company, and Opportunity
 - **Optional future:** Analytics/reporting — dashboards for import activity, source effectiveness, conversion funnel
@@ -257,6 +357,7 @@ The following items are **not in scope** for the current MVP and are moved to th
 | 5 | Runtime validation (provider diagnostics, gating smoke test, search regression, read-only, no DB mutation) | ✅ Done |
 | 6 | No real external API calls in production by default | ✅ Done |
 | 7 | No secrets committed (credentials read from environment only) | ✅ Done |
+| 8 | Adzuna UK live connector (`AdzunaUKAPIClient`, exceptions, mapping, gating) | ✅ Done |
 
 ## Key Files
 
@@ -268,3 +369,5 @@ The following items are **not in scope** for the current MVP and are moved to th
 - `backend/.env.example` — Documented optional env vars
 - `backend/tests/test_phase10a.py` — Phase 10A tests
 - `backend/tests/test_phase10b.py` — Phase 10B tests
+- `backend/app/services/adzuna_uk_client.py` — Adzuna UK real API connector (Phase 10E)
+- `backend/tests/test_phase10e.py` — Phase 10E tests
