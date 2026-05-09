@@ -196,7 +196,7 @@ path = overlay / "kustomization.yaml"
 sha = os.environ["GIT_SHA"]
 
 text = path.read_text()
-text = re.sub(r"newTag: .*", f"newTag: {sha}", text)
+text = re.sub(r"newTag: .*", f'newTag: "{sha}"', text)
 path.write_text(text)
 
 print(path.read_text())
