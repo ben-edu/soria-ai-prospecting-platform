@@ -646,6 +646,8 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
     source_kind = "freelance_project"
     description = "Freelance project opportunities from Freelancer.com"
     language = "en"
+    supports_real_api = True
+    _credential_fields = ["FREELANCER_OAUTH_TOKEN"]
 
     _MOCK_CANDIDATES: list[dict] = [
         {
@@ -758,6 +760,25 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
         location: Optional[str] = None,
         limit: int = 10,
     ) -> list[ExternalOpportunityCandidate]:
+        # Phase 10F — live-mode routing for Freelancer real connector
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.freelancer_client import (
+                        FreelancerAPIClient,
+                        FreelancerClientError,
+                    )
+                    api_client = FreelancerAPIClient(settings=settings)
+                    return api_client.search_projects(
+                        query=query, location=location, limit=limit,
+                    )
+                except FreelancerClientError as exc:
+                    raise ValueError(
+                        f"Freelancer search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
         candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
 
         if location:

@@ -29,6 +29,8 @@ All settings live in `backend/app/core/config.py` (pydantic-settings `Settings` 
 | `ADZUNA_UK_APP_ID` | `Optional[str]` | `None` | Adzuna UK API application ID |
 | `ADZUNA_UK_APP_KEY` | `Optional[str]` | `None` | Adzuna UK API application key |
 | `ADZUNA_UK_API_BASE_URL` | `Optional[str]` | `None` (→ `https://api.adzuna.com/v1/api/jobs/gb`) | Adzuna UK API base URL |
+| `FREELANCER_OAUTH_TOKEN` | `Optional[str]` | `None` | Freelancer.com OAuth token |
+| `FREELANCER_API_BASE_URL` | `Optional[str]` | `None` (→ `https://www.freelancer.com/api`) | Freelancer API base URL |
 | `EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS` | `int` | `10` | HTTP timeout for real API calls (not used in mock mode) |
 
 ### Provider Credential Mapping
@@ -37,7 +39,7 @@ All settings live in `backend/app/core/config.py` (pydantic-settings `Settings` 
 |----------|-----------------|
 | `france_travail` | `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET` |
 | `adzuna_uk` | `ADZUNA_UK_APP_ID`, `ADZUNA_UK_APP_KEY` |
-| `freelancer` | None (no real API planned) |
+| `freelancer` | `FREELANCER_OAUTH_TOKEN` |
 
 ## Diagnostics Fields
 
@@ -283,6 +285,104 @@ Two new required settings and one optional setting added to `backend/app/core/co
 | `TestNoDatabaseMutation` | Read-only endpoints do not mutate the database |
 | `TestServiceLayer` | Provider registry unchanged; FT and Freelancer unchanged |
 
+### Phase 10F — Freelancer Real Connector
+
+Phase 10F adds a real Freelancer.com API connector with live-mode gating:
+
+1. **Dedicated connector module** (`backend/app/services/freelancer_client.py`) with `FreelancerAPIClient` class
+2. **Custom exception hierarchy**: `FreelancerClientError` → `FreelancerConfigurationError`, `FreelancerAPIError`
+3. **Live-mode routing** in `FreelancerMockProvider.search()` — routes to `FreelancerAPIClient` when `EXTERNAL_SOURCES_MODE != "mock"` and credentials are present
+4. **Safe fallback** — when credentials are missing in live mode, returns mock data
+
+#### Design Principles
+
+- **OAuth2 Bearer token** — Freelancer uses a personal OAuth token in the `Authorization` header
+- **No bid or message automation** — the connector discovers projects only; no automatic bid, no automatic message, no external communication
+- **Same safety patterns** — injectable HTTP transport, `validate_configuration()` before search, no secrets in error messages
+- **Backward compatible** — Phase 9A/9B/10A/10B/10C/10E behavior is unchanged
+
+#### FreelancerAPIClient Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `is_ready()` | `bool` | True if oauth_token is set |
+| `validate_configuration()` | `bool` | Raises `FreelancerConfigurationError` if token is missing |
+| `build_search_params(query, location, limit)` | `dict` | Maps SORIA params to Freelancer API fields (`query`, `location`, `limit`) |
+| `normalize_project(raw_project)` | `ExternalOpportunityCandidate` | Maps Freelancer API response fields to SORIA schema |
+| `search_projects(query, location, limit, http_client)` | `list[ExternalOpportunityCandidate]` | Full search flow: validate → search → normalize. HTTP transport is injectable via `http_client` parameter. |
+
+#### API Field Mapping (normalize_project)
+
+| Freelancer Field | SORIA Field | Notes |
+|-----------------|-------------|-------|
+| `id` | `external_id` | Converted to string |
+| `title` | `title` | |
+| `description` | `description` | |
+| `seo_url` | `source_url` | Prefixed with `https://www.freelancer.com` if relative |
+| `time_created` | `source_published_at` | `YYYY-MM-DD HH:MM:SS` parsed |
+| `budget.minimum` | `budget_min` | Nested object |
+| `budget.maximum` | `budget_max` | Nested object |
+| `currency.code` | `budget_currency` | Nested object |
+| `skills[].name` | `tags` | Lowercased |
+| `jobs[].name` | `tags` | Lowercased, appended to skills |
+| `location.country.name` | `country` | Falls back to `"GLOBAL"` |
+| `bid_stats.bid_count` | `raw_payload._bid_count` | Extra field in raw payload |
+| `type` | `contract_type` | `"fixed"` → `"project"`, `"hourly"` → `"hourly"` |
+
+#### Search Parameter Mapping (build_search_params)
+
+| SORIA Parameter | Freelancer API Parameter |
+|----------------|-------------------------|
+| `query` | `query` |
+| `location` | `location` |
+| `limit` | `limit` (capped 1-50) |
+
+#### Configuration
+
+Two new optional settings added to `backend/app/core/config.py`:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `FREELANCER_OAUTH_TOKEN` | `Optional[str]` | `None` | Freelancer.com OAuth token for API authentication |
+| `FREELANCER_API_BASE_URL` | `Optional[str]` | `None` (→ `https://www.freelancer.com/api`) | Freelancer API base URL |
+
+#### Exceptions
+
+| Exception | Parent | Raised When |
+|-----------|--------|-------------|
+| `FreelancerClientError` | `Exception` | Base for all Freelancer client errors |
+| `FreelancerConfigurationError` | `FreelancerClientError` | Required config (oauth_token) is missing |
+| `FreelancerAPIError` | `FreelancerClientError` | Search API returns an error |
+
+#### Safety
+
+- **`search_projects` calls `validate_configuration()` first** — missing token raises `FreelancerConfigurationError` before any HTTP call
+- **`search_projects` is never called by default** — the provider system still uses `FreelancerMockProvider` while `EXTERNAL_SOURCES_MODE=mock`
+- **No secrets in error messages** — exception messages reference env var names, not values
+- **No real HTTP calls in tests** — the `http_client` parameter allows full mocking
+- **No automatic bid, no automatic message, no external communication** — the connector is discover-only
+- **OAuth token never exposed in errors** — API error responses strip credential values
+
+#### Tests
+
+**File:** `backend/tests/test_phase10f.py`
+
+| Test Class | Coverage |
+|------------|----------|
+| `TestConnectorInstantiation` | Connector can be instantiated with/without settings, `is_ready()` reflects credential state |
+| `TestValidateConfiguration` | `validate_configuration()` raises safely when token missing; messages don't expose values |
+| `TestBuildSearchParams` | Search params builder maps query/location/limit to Freelancer fields correctly |
+| `TestNormalizeProject` | Full project, minimal project, empty dict, missing nested objects, bad dates, budget, bid_count, skills — all handled gracefully |
+| `TestSearchProjectsWithMockedTransport` | `search_projects` uses injected HTTP client; errors raise appropriate exceptions; auth headers verified |
+| `TestFreelancerLiveModeWithCredentials` | Live mode with credentials routes to `FreelancerAPIClient`; params passed correctly |
+| `TestFreelancerLiveModeMissingCredentials` | Live mode without credentials falls back to mock; no real client call |
+| `TestFreelancerClientErrorHandling` | `FreelancerClientError` subclasses become safe HTTP 400; no credential leakage |
+| `TestMockModeUnchanged` | Mock search, location filter, limit — all unchanged |
+| `TestCombinedSearch` | Combined search with live freelancer + mock others; missing creds all mock |
+| `TestProviderDiagnostics` | Diagnostics reflect Freelancer configuration state; `supports_real_api=True` |
+| `TestNoDatabaseMutation` | Read-only endpoints do not mutate the database |
+| `TestServiceLayer` | Provider registry unchanged; FT and Adzuna UK unchanged |
+
 ## Diagnostics Logic
 
 The `credentials_configured` check requires **all** of a provider's credential fields to have truthy values. If any are `None` or empty, credentials are considered not configured.
@@ -307,6 +407,7 @@ In Phase 10A, `real_api_enabled` is always `False` because the default mode is `
 | **10C** | Wire real France Travail search behind EXTERNAL_SOURCES_MODE | ✅ **Done** |
 | **10D** | Phase 10 closure documentation | ✅ **Done** |
 | **10E** | Adzuna UK real connector | ✅ **Done** |
+| **10F** | Freelancer real connector | ✅ **Done** |
 
 ## Phase 10D — Closure & Backlog
 
@@ -319,7 +420,7 @@ Phase 10 is complete for the current MVP boundary. This phase safely introduced 
 | Current production mode | `EXTERNAL_SOURCES_MODE=mock` |
 | France Travail live connector | Implemented but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid credentials |
 | Adzuna UK live connector | **Implemented** but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid UK credentials |
-| Freelancer real connector | **Not implemented** — moved to backlog |
+| Freelancer live connector | **Implemented** but gated — requires `EXTERNAL_SOURCES_MODE=live` + valid Freelancer OAuth token |
 
 ### Next Recommended Work
 
@@ -330,7 +431,7 @@ The next product effort should focus on **import review / user workflow / MVP st
 - Add analytics and reporting for imported opportunities
 - Stabilise the cockpit experience for daily operator use
 
-Adding new live connectors (Adzuna UK, Freelancer, or others) is deferred until:
+Adding new live connectors (beyond Adzuna UK and Freelancer) is deferred until:
 
 1. The current connector architecture has been validated in production-like conditions
 2. Operational credential management processes are established
@@ -341,7 +442,6 @@ Adding new live connectors (Adzuna UK, Freelancer, or others) is deferred until:
 The following items are **not in scope** for the current MVP and are moved to the project backlog:
 
 - **Optional future:** France Travail production credential activation — switch from mock to live when credentials and operational readiness are confirmed
-- **Optional future:** Freelancer live connector — real API integration for global freelance marketplace
 - **Optional future:** Stronger import review status — enhanced review workflow with approvals, rejection reasons, bulk actions
 - **Optional future:** Duplicate hardening — improved fuzzy matching across SourceRecord, Company, and Opportunity
 - **Optional future:** Analytics/reporting — dashboards for import activity, source effectiveness, conversion funnel
@@ -358,6 +458,7 @@ The following items are **not in scope** for the current MVP and are moved to th
 | 6 | No real external API calls in production by default | ✅ Done |
 | 7 | No secrets committed (credentials read from environment only) | ✅ Done |
 | 8 | Adzuna UK live connector (`AdzunaUKAPIClient`, exceptions, mapping, gating) | ✅ Done |
+| 9 | Freelancer live connector (`FreelancerAPIClient`, exceptions, mapping, gating) | ✅ Done |
 
 ## Key Files
 
@@ -371,3 +472,5 @@ The following items are **not in scope** for the current MVP and are moved to th
 - `backend/tests/test_phase10b.py` — Phase 10B tests
 - `backend/app/services/adzuna_uk_client.py` — Adzuna UK real API connector (Phase 10E)
 - `backend/tests/test_phase10e.py` — Phase 10E tests
+- `backend/app/services/freelancer_client.py` — Freelancer real API connector (Phase 10F)
+- `backend/tests/test_phase10f.py` — Phase 10F tests

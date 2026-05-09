@@ -1232,12 +1232,12 @@ class TestProviderDiagnostics:
         assert ft["supports_real_api"] is True
         assert ft["safe_status"] == "mock"
 
-    def test_freelancer_unchanged(self, client):
-        """freelancer still does not support real API."""
+    def test_freelancer_supports_real_api_in_phase10f(self, client):
+        """freelancer now supports real API (Phase 10F)."""
         resp = client.get("/api/v1/external-sources/providers")
         providers = {p["provider"]: p for p in resp.json()["providers"]}
         fl = providers["freelancer"]
-        assert fl["supports_real_api"] is False
+        assert fl["supports_real_api"] is True
         assert fl["safe_status"] == "mock"
 
 
@@ -1327,13 +1327,13 @@ class TestServiceLayer:
             "FRANCE_TRAVAIL_CLIENT_SECRET",
         ]
 
-    def test_freelancer_unchanged(self):
+    def test_freelancer_now_supports_real_api(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
         cls = PROVIDER_REGISTRY["freelancer"]
         assert cls.is_mock is True
-        assert cls.supports_real_api is False
-        assert cls._credential_fields == []
+        assert cls.supports_real_api is True
+        assert cls._credential_fields == ["FREELANCER_OAUTH_TOKEN"]
 
     def test_external_sources_module_importable(self):
         """The external_sources module still imports cleanly."""

@@ -3,7 +3,7 @@
 Covers:
 - Default config values (EXTERNAL_SOURCES_MODE=mock, no credentials)
 - Diagnostics response includes all Phase 10A fields
-- supports_real_api is True for france_travail/adzuna_uk, False for freelancer
+- supports_real_api is True for france_travail/adzuna_uk/freelancer
 - credentials_configured is False by default, True when env vars are set
 - real_api_enabled is False by default (mock mode)
 - safe_status is "mock" for all providers in default mode
@@ -65,17 +65,18 @@ class TestDiagnosticsResponse:
         providers = {p["provider"]: p for p in resp.json()["providers"]}
         assert providers["adzuna_uk"]["supports_real_api"] is True
 
-    def test_freelancer_does_not_support_real_api(self, client):
+    def test_freelancer_now_supports_real_api(self, client):
+        """Freelancer supports real API starting in Phase 10F."""
         resp = client.get("/api/v1/external-sources/providers")
         providers = {p["provider"]: p for p in resp.json()["providers"]}
-        assert providers["freelancer"]["supports_real_api"] is False
+        assert providers["freelancer"]["supports_real_api"] is True
 
     def test_credentials_not_configured_by_default(self, client):
         resp = client.get("/api/v1/external-sources/providers")
         providers = {p["provider"]: p for p in resp.json()["providers"]}
         assert providers["france_travail"]["credentials_configured"] is False
         assert providers["adzuna_uk"]["credentials_configured"] is False
-        # freelancer has no real API, so credentials_configured should also be False
+        # freelancer supports a real API in Phase 10F, but no credentials are configured by default
         assert providers["freelancer"]["credentials_configured"] is False
 
     def test_real_api_not_enabled_by_default(self, client):
@@ -432,12 +433,12 @@ class TestServiceLayer:
             "ADZUNA_UK_APP_KEY",
         ]
 
-    def test_freelancer_no_credential_fields(self):
+    def test_freelancer_credential_fields(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
         fl_cls = PROVIDER_REGISTRY["freelancer"]
-        assert fl_cls._credential_fields == []
-        assert fl_cls.supports_real_api is False
+        assert fl_cls._credential_fields == ["FREELANCER_OAUTH_TOKEN"]
+        assert fl_cls.supports_real_api is True
 
     def test_check_credentials_configured_all_present(self):
         from app.services.external_sources import PROVIDER_REGISTRY

@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     ADZUNA_UK_APP_ID: Optional[str] = None
     ADZUNA_UK_APP_KEY: Optional[str] = None
     ADZUNA_UK_API_BASE_URL: Optional[str] = None
+    FREELANCER_OAUTH_TOKEN: Optional[str] = None
+    FREELANCER_API_BASE_URL: Optional[str] = None
     EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS: int = 10
 
 
