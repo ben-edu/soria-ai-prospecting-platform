@@ -138,10 +138,9 @@ class AdzunaUKAPIClient:
         """Build search query parameters for the Adzuna UK API.
 
         Maps SORIA search parameters to Adzuna UK API fields:
-        - query -> q (keywords)
+        - query -> what (keywords)
         - location -> where (location)
-        - limit -> max_results (results count, capped to 1-50)
-
+        - limit -> results_per_page (results count, capped to 1-50)
         Parameters
         ----------
         query
@@ -149,7 +148,7 @@ class AdzunaUKAPIClient:
         location
             Optional location filter (maps to where).
         limit
-            Maximum number of results (maps to max_results, capped at 1-50).
+            Maximum number of results (maps to results_per_page, capped at 1-50).
 
         Returns
         -------
@@ -158,8 +157,9 @@ class AdzunaUKAPIClient:
         params: dict = {
             "app_id": self.app_id or "",
             "app_key": self.app_key or "",
-            "q": query.strip(),
-            "max_results": min(max(1, limit), 50),
+            "what": query.strip(),
+            "results_per_page": min(max(1, limit), 50),
+            "content-type": "application/json",
         }
         if location and location.strip():
             params["where"] = location.strip()
