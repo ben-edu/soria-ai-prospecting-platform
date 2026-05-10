@@ -242,10 +242,10 @@ class TestValidateConfiguration:
 class TestBuildSearchParams:
     """Search param builder maps query/location/limit correctly."""
 
-    def test_maps_query_to_q(self):
+    def test_maps_query_to_what(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
         params = client.build_search_params(query="devops")
-        assert params["q"] == "devops"
+        assert params["what"] == "devops"
 
     def test_maps_location_to_where(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
@@ -262,25 +262,25 @@ class TestBuildSearchParams:
         params = client.build_search_params(query="devops", location=None)
         assert "where" not in params
 
-    def test_maps_limit_to_max_results(self):
+    def test_maps_limit_to_results_per_page(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
         params = client.build_search_params(query="devops", limit=5)
-        assert params["max_results"] == 5
+        assert params["results_per_page"] == 5
 
     def test_caps_limit_at_50(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
         params = client.build_search_params(query="devops", limit=100)
-        assert params["max_results"] == 50
+        assert params["results_per_page"] == 50
 
     def test_floor_limit_at_1(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
         params = client.build_search_params(query="devops", limit=0)
-        assert params["max_results"] == 1
+        assert params["results_per_page"] == 1
 
     def test_strips_query_whitespace(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
         params = client.build_search_params(query="  devops  ")
-        assert params["q"] == "devops"
+        assert params["what"] == "devops"
 
     def test_strips_location_whitespace(self):
         client = AdzunaUKAPIClient(settings=_configured_settings())
@@ -560,9 +560,9 @@ class TestSearchJobsWithMockedTransport:
 
         # Check query params
         params = call_kwargs[1].get("params", {})
-        assert params["q"] == "devops"
+        assert params["what"] == "devops"
         assert params["where"] == "London"
-        assert params["max_results"] == 3
+        assert params["results_per_page"] == 3
         assert params["app_id"] == "test-app-id"
         assert params["app_key"] == "test-app-key"
 
