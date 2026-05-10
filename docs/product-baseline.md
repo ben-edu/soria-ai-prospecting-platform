@@ -52,7 +52,7 @@ External Source Search
 | Real API connector architecture (France Travail, Adzuna UK, Freelancer) | ✅ Implemented, gated |
 | Real AI provider integration (OpenAI/Claude) | ❌ Not started |
 
-> **Note:** Runtime validation test data is present in the production database and has not been cleaned up.
+> **Note:** One controlled demo scenario is intentionally retained in production for demonstration and training purposes. See the [MVP Final Handoff](mvp-final-handoff.md#demo-data-intentionally-kept).
 
 ## Planned (Future Phases)
 
@@ -66,6 +66,20 @@ External Source Search
 - Academy/Moodle API integration
 - Dashboard and reporting
 - Kubernetes deployment
+
+## MVP Closure
+
+The SORIA MVP bootstrap is formally closed as of Phase 11F. The platform is completed, deployed, validated in production, and ready for demonstration.
+
+See the [MVP Final Handoff](mvp-final-handoff.md) document for:
+- Full MVP scope summary
+- Production runtime status
+- Validated end-to-end scenario
+- Demonstration walkthrough
+- Known limitations and backlog
+- Final closure statement
+
+---
 
 ## Core Rules
 
