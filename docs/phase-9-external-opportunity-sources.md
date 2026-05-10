@@ -28,6 +28,8 @@ Phase 9 adds the ability to discover and import external opportunities from publ
 | **11A** | Imported Opportunity Review Workflow — imported opportunities get `imported_pending_review` status, visible in Cockpit, filterable by status. Duplicate imports preserve existing status. | ✅ Done |
 | **10F** | Freelancer real connector — `FreelancerAPIClient`, exceptions, project search mapping, live-mode gating | ✅ Done (see phase-10 docs) |
 | **11B** | Imported Opportunity Review UX — status labels render human-readable text in list/show views, `imported_pending_review` highlighted with warning badge in list, status filter choices reordered to group review workflow path (`imported_pending_review` → `interesting` → `not_relevant` → `draft_needed`). | ✅ Done |
+| **11C** | MVP scenario runtime validation — full end-to-end workflow verified in production: external source search → import candidate → `imported_pending_review` → human review to `interesting` → AI draft preview → generate AI draft → submit for review → approve → mark sent manually → `follow_up_needed` → compliance events (`message_generated`, `message_approved`, `message_sent`). | ✅ Done |
+| **11D** | MVP user guide and completion documentation — [MVP user guide](mvp-user-guide.md), product baseline MVP completion status, phase plan update. Documentation-only phase. | ✅ Done |
 
 ---
 
