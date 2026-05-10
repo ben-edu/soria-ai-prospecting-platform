@@ -21,6 +21,39 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] Imported opportunity review workflow (Phase 11A — imported_pending_review status, Cockpit visibility, status filtering)
 - [x] Imported opportunity review UX (Phase 11B — human-readable status labels, warning badge in list, status choices reordered for review workflow)
 
+## MVP Completion Status
+
+The MVP minimal viable product workflow is complete and validated in production runtime testing. The following end-to-end flow has been verified:
+
+```
+External Source Search
+  → Import Candidate
+    → imported_pending_review
+      → Human Review → interesting
+        → AI Draft Preview (read-only)
+          → Generate AI Draft
+            → Submit for Review
+              → Approve
+                → Mark Sent Manually
+                  → follow_up_needed
+                    → Compliance Events: message_generated, message_approved, message_sent
+```
+
+| Capability | Status |
+|-----------|--------|
+| External opportunity discovery (mock) | ✅ Complete |
+| Candidate import with deduplication | ✅ Complete |
+| Import provenance (SourceRecord) | ✅ Complete |
+| Imported opportunity review workflow | ✅ Complete |
+| AI-assisted draft generation (mock_ai) | ✅ Complete |
+| Human review workflow (submit → approve/reject → mark sent) | ✅ Complete |
+| Follow-up scheduling | ✅ Complete |
+| Compliance event traceability | ✅ Complete |
+| Real API connector architecture (France Travail, Adzuna UK, Freelancer) | ✅ Implemented, gated |
+| Real AI provider integration (OpenAI/Claude) | ❌ Not started |
+
+> **Note:** Runtime validation test data is present in the production database and has not been cleaned up.
+
 ## Planned (Future Phases)
 
 - Real external AI provider integration (OpenAI/Claude)
