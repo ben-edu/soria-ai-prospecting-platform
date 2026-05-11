@@ -13,7 +13,6 @@ Covers:
 - /external-sources/providers still works
 """
 
-from sqlmodel import Session
 
 from app.models.company import Company
 from app.models.compliance_event import ComplianceEvent
