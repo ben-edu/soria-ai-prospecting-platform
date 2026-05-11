@@ -13,6 +13,7 @@ from app.core.config import settings as app_settings
 from app.schemas.external_source import (
     ExternalOpportunityCandidate,
     ExternalOpportunitySearchResponse,
+    ExternalSourceCatalogEntry,
     ExternalSourceDiagnosticsResponse,
     ImportExternalCandidateResponse,
 )
@@ -23,13 +24,14 @@ from app.services.external_sources import (
     search_external_opportunities,
     search_multiple_external_sources,
 )
+from app.services.source_catalog import get_source_catalog
 
 router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
-# NOTE: /providers, /search, and /import-candidate MUST be declared before
-# /{provider}/search to avoid FastAPI path parameter conflicts.
+# NOTE: /providers, /search, /import-candidate, and /source-catalog MUST be
+# declared before /{provider}/search to avoid FastAPI path parameter conflicts.
 # ---------------------------------------------------------------------------
 
 
@@ -142,6 +144,20 @@ def post_import_candidate(
             status_code=400,
             detail=str(exc),
         )
+
+
+@router.get(
+    "/source-catalog",
+    response_model=list[ExternalSourceCatalogEntry],
+)
+def get_catalog():
+    """Return the read-only French freelance source catalog.
+
+    Phase 12B — static informational entries only.
+    These platforms are NOT registered as external source providers.
+    They cannot be searched, imported, scraped, or messaged.
+    """
+    return get_source_catalog()
 
 
 @router.get(

@@ -3,12 +3,64 @@
 Phase 9A — External Opportunity Sources Foundation.
 Phase 9B — Import External Candidate into SourceRecord + Company + Opportunity.
 Phase 10A — Real External API Configuration Foundation.
+Phase 12B — French Freelance Source Catalog (read-only catalog entries).
 """
 
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class ExternalSourceCatalogEntry(BaseModel):
+    """Read-only catalog entry for a French freelance platform.
+
+    Phase 12B — these are NOT external source providers. They are static
+    informational entries in the source catalog. They cannot be searched,
+    imported, scraped, or messaged.
+    """
+
+    provider: str = Field(description="Unique provider identifier")
+    label: str = Field(description="Human-readable platform name")
+    country: str = Field(description="ISO country code")
+    language: str = Field(description="Primary language code")
+    source_kind: str = Field(description="Category of the source")
+    interaction_mode: str = Field(description="How users interact with this platform")
+    description: str = Field(description="Platform description")
+    usage_guide: str = Field(description="How to use this platform with SORIA")
+    search_url: str = Field(description="URL to search for opportunities")
+    profile_url: str = Field(description="URL to view freelancer profiles")
+
+    # Safety & governance flags
+    is_manual_source: bool = Field(
+        description="Human-driven, no automation possible"
+    )
+    supports_real_api: bool = Field(
+        description="Whether a real API connector exists"
+    )
+    requires_credentials: bool = Field(
+        description="Whether credentials are needed"
+    )
+    human_review_required: bool = Field(
+        description="Human review is mandatory before any action"
+    )
+    importable: bool = Field(
+        description="Whether entries can be imported into SORIA"
+    )
+    scraping_allowed: bool = Field(
+        description="Whether scraping is permitted"
+    )
+    external_message_allowed: bool = Field(
+        description="Whether automated external messaging is allowed"
+    )
+
+    # Advisory fields
+    recommended_for: str = Field(
+        description="Recommended use cases for this platform"
+    )
+    notes: str = Field(
+        description="Additional notes and caveats"
+    )
 
 
 class ExternalSourceProviderInfo(BaseModel):
