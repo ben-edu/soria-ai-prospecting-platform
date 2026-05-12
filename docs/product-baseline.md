@@ -21,6 +21,7 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] Imported opportunity review workflow (Phase 11A — imported_pending_review status, Cockpit visibility, status filtering)
 - [x] Imported opportunity review UX (Phase 11B — human-readable status labels, warning badge in list, status choices reordered for review workflow)
 - [x] French freelance source catalog (Phase 12B — read-only reference directory of Free-Work, Codeur.com, LeHibou, Malt, Comet; not searchable/importable; Cockpit UI)
+- [x] Adzuna France and Germany providers (Phase 12C — two new registered providers adzuna_fr and adzuna_de sharing the AdzunaUKAPIClient with country code routing; searchable, importable, real API gated; no migration needed)
 
 ## MVP Completion Status
 
@@ -79,6 +80,14 @@ See the [MVP Final Handoff](mvp-final-handoff.md) document for:
 - Demonstration walkthrough
 - Known limitations and backlog
 - Final closure statement
+
+---
+
+## Post-MVP Update — Phase 12C (2026-05-12)
+
+Phase 12C added two new real external source providers — **Adzuna France** (`adzuna_fr`) and **Adzuna Germany** (`adzuna_de`) — extending the platform's European job discovery coverage. Unlike the Phase 12B Source Catalog entries, these are fully registered providers: searchable via `GET /search`, importable via `POST /import-candidate`, and backed by a real API connector with live-mode gating. They share credentials with the existing Adzuna UK provider (same `ADZUNA_UK_APP_ID` / `ADZUNA_UK_APP_KEY`). No migration, no model change, and no frontend work were required (Cockpit auto-discovers providers from `GET /api/v1/external-sources/providers`).
+
+See [Phase 12C documentation](phase-12c-adzuna-fr-de-providers.md) for full details.
 
 ---
 
