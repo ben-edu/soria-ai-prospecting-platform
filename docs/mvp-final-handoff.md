@@ -259,6 +259,16 @@ See [Phase 12B documentation](phase-12b-french-freelance-source-catalog.md) for 
 
 ---
 
+## Post-MVP Update — Phase 12C (2026-05-12)
+
+Phase 12C added two new real external source providers — **Adzuna France** (`adzuna_fr`) and **Adzuna Germany** (`adzuna_de`). These are fully registered, searchable, importable providers sharing the existing `AdzunaUKAPIClient` with a per-country code parameter. They reuse the same `ADZUNA_UK_APP_ID` / `ADZUNA_UK_APP_KEY` credentials. No migration, no model change, and no frontend work was needed.
+
+For full details, including the architecture decision (multiple providers sharing a single client), provider-vs-catalog distinction, endpoint behavior, safety governance, production validation, and test coverage, see the dedicated document:
+
+► [Phase 12C — Adzuna FR/DE Providers](phase-12c-adzuna-fr-de-providers.md)
+
+---
+
 ## Reference Documents
 
 | Document | Description |
@@ -268,3 +278,4 @@ See [Phase 12B documentation](phase-12b-french-freelance-source-catalog.md) for 
 | [Phase 9 — External Sources](phase-9-external-opportunity-sources.md) | External source architecture and implementation |
 | [Phase 10 — Real External API Foundation](phase-10-real-external-api-foundation.md) | Real API connector architecture |
 | [Phase 12B — French Freelance Source Catalog](phase-12b-french-freelance-source-catalog.md) | French freelance platform reference directory |
+| [Phase 12C — Adzuna FR/DE Providers](phase-12c-adzuna-fr-de-providers.md) | Adzuna France and Germany real external source providers |
