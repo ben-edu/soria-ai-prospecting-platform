@@ -396,7 +396,7 @@ class TestServiceLayer:
         from app.services.external_sources import list_external_source_providers
 
         providers = list_external_source_providers()
-        assert len(providers) == 5
+        assert len(providers) == 6
         # Without settings, diagnostics should have defaults
         for p in providers:
             assert p.supports_real_api is True or p.supports_real_api is False
@@ -409,7 +409,7 @@ class TestServiceLayer:
         from app.services.external_sources import list_external_source_providers
 
         providers = list_external_source_providers(settings=settings)
-        assert len(providers) == 5
+        assert len(providers) == 6
         for p in providers:
             assert p.credentials_configured is False
             assert p.real_api_enabled is False

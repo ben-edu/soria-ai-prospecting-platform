@@ -1094,6 +1094,172 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
         ]
 
 
+@register_external_source("jooble")
+class JoobleMockProvider(BaseExternalSourceProvider):
+    """Deterministic mock for Jooble (global job search engine).
+
+    Returns DevOps, cloud, and infrastructure job candidates globally.
+    """
+
+    provider = "jooble"
+    label = "Jooble"
+    country = "GLOBAL"
+    source_kind = "job"
+    description = "Global job listings via Jooble"
+    language = "en"
+    supports_real_api = True
+    _credential_fields = ["JOOBLE_API_KEY"]
+
+    _MOCK_CANDIDATES: list[dict] = [
+        {
+            "external_id": "job-gl-001",
+            "title": "Senior DevOps Engineer",
+            "company_name": "GlobalTech Inc.",
+            "description": (
+                "Build and maintain large-scale CI/CD pipelines and"
+                " Kubernetes infrastructure for a global SaaS platform."
+            ),
+            "location": "Remote",
+            "country": "GLOBAL",
+            "contract_type": "full-time",
+            "remote_type": "remote",
+            "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+        },
+        {
+            "external_id": "job-gl-002",
+            "title": "Cloud Architect",
+            "company_name": "CloudScale GmbH",
+            "description": (
+                "Design multi-cloud architectures on AWS, Azure, and GCP"
+                " for enterprise customers worldwide."
+            ),
+            "location": "Berlin",
+            "country": "DE",
+            "contract_type": "full-time",
+            "remote_type": "hybrid",
+            "tags": ["cloud", "aws", "azure", "gcp", "architecture"],
+        },
+        {
+            "external_id": "job-gl-003",
+            "title": "Platform Engineer",
+            "company_name": "DataStream Ltd",
+            "description": (
+                "Develop and operate the internal developer platform"
+                " powering our data infrastructure team."
+            ),
+            "location": "London",
+            "country": "GB",
+            "contract_type": "permanent",
+            "remote_type": "hybrid",
+            "tags": ["platform engineering", "devops", "kubernetes", "cloud"],
+        },
+        {
+            "external_id": "job-gl-004",
+            "title": "DevSecOps Engineer",
+            "company_name": "SecurePath Inc.",
+            "description": (
+                "Integrate security practices into CI/CD pipelines"
+                " and automate compliance validation for cloud deployments."
+            ),
+            "location": "Remote",
+            "country": "GLOBAL",
+            "contract_type": "contract",
+            "remote_type": "remote",
+            "tags": ["devsecops", "security", "ci/cd", "automation"],
+        },
+        {
+            "external_id": "job-gl-005",
+            "title": "Infrastructure Automation Lead",
+            "company_name": "BuildRight Corp",
+            "description": (
+                "Lead the infrastructure automation team to deliver"
+                " IaC solutions using Terraform and Ansible."
+            ),
+            "location": "New York",
+            "country": "US",
+            "contract_type": "full-time",
+            "remote_type": "hybrid",
+            "tags": ["infrastructure", "automation", "terraform", "ansible"],
+        },
+        {
+            "external_id": "job-gl-006",
+            "title": "Cloud Training Specialist",
+            "company_name": "EduCloud Global",
+            "description": (
+                "Create and deliver technical training programs"
+                " on cloud computing and DevOps practices."
+            ),
+            "location": "Remote",
+            "country": "GLOBAL",
+            "contract_type": "contract",
+            "remote_type": "remote",
+            "tags": ["training", "cloud", "devops", "education"],
+        },
+    ]
+
+    def search(
+        self,
+        query: str,
+        location: Optional[str] = None,
+        limit: int = 10,
+    ) -> list[ExternalOpportunityCandidate]:
+        # Phase 12D — live-mode routing
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.jooble_client import (
+                        JoobleAPIClient,
+                        JoobleClientError,
+                    )
+                    api_client = JoobleAPIClient(settings=settings)
+                    return api_client.search_jobs(
+                        query=query, location=location, limit=limit,
+                    )
+                except JoobleClientError as exc:
+                    raise ValueError(
+                        f"Jooble search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
+        # Default mock behavior (unchanged)
+        candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
+
+        if location:
+            loc_lower = location.strip().lower()
+            candidates = [
+                c for c in candidates
+                if loc_lower in (c.get("location") or "").lower()
+                or loc_lower in (c.get("country") or "").lower()
+            ]
+
+        candidates = candidates[:limit]
+
+        return [
+            ExternalOpportunityCandidate(
+                provider=self.provider,
+                external_id=c["external_id"],
+                source_kind=self.source_kind,
+                title=c["title"],
+                company_name=c["company_name"],
+                description=c["description"],
+                location=c["location"],
+                country=c.get("country") or self.country,
+                language=self.language,
+                source_url=None,
+                source_published_at=datetime(2025, 10, 1, tzinfo=timezone.utc),
+                contract_type=c["contract_type"],
+                remote_type=c["remote_type"],
+                budget_min=None,
+                budget_max=None,
+                budget_currency=None,
+                tags=c["tags"],
+                raw_payload=c.copy(),
+            )
+            for c in candidates
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Phase 9B — Import external candidate into SourceRecord + Company + Opportunity
 # ---------------------------------------------------------------------------
