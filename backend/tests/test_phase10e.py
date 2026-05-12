@@ -1300,7 +1300,7 @@ class TestServiceLayer:
     def test_provider_registry_size(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
-        assert len(PROVIDER_REGISTRY) == 3
+        assert len(PROVIDER_REGISTRY) == 5
 
     def test_registry_contains_all(self):
         from app.services.external_sources import PROVIDER_REGISTRY
@@ -1340,7 +1340,7 @@ class TestServiceLayer:
         from app.services import external_sources
 
         providers = external_sources.list_external_source_providers()
-        assert len(providers) == 3
+        assert len(providers) == 5
 
     def test_adzuna_uk_client_importable(self):
         """The adzuna_uk_client module imports without side effects."""

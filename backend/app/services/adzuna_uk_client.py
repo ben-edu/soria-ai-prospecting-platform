@@ -46,6 +46,14 @@ class AdzunaUKAPIError(AdzunaUKClientError):
 # ---------------------------------------------------------------------------
 
 _ADZUNA_UK_API_BASE_URL_DEFAULT = "https://api.adzuna.com/v1/api/jobs/gb"
+_ADZUNA_API_BASE_TEMPLATE = "https://api.adzuna.com/v1/api/jobs/{country}"
+
+# Country-code to (country, language, provider_name) mapping
+_COUNTRY_CONFIG: dict[str, tuple[str, str, str]] = {
+    "gb": ("GB", "en", "adzuna_uk"),
+    "fr": ("FR", "fr", "adzuna_fr"),
+    "de": ("DE", "de", "adzuna_de"),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -54,15 +62,18 @@ _ADZUNA_UK_API_BASE_URL_DEFAULT = "https://api.adzuna.com/v1/api/jobs/gb"
 
 
 class AdzunaUKAPIClient:
-    """Real Adzuna UK API client connector.
+    """Real Adzuna API client connector.
 
     Provides methods for configuration validation, request building,
     response normalization, and job search.
 
+    Supports multiple country codes (gb, fr, de). Defaults to "gb"
+    for backward compatibility with Phase 10E.
+
     The HTTP transport is injectable for testability. No real HTTP calls
     are made unless explicitly enabled and configured.
 
-    Adzuna UK uses app_id + app_key as query parameters (no OAuth2).
+    Adzuna uses app_id + app_key as query parameters (no OAuth2).
 
     Parameters
     ----------
@@ -72,27 +83,37 @@ class AdzunaUKAPIClient:
     http_client
         Optional httpx.Client for HTTP transport injection.
         If not provided, one will be created when search_jobs is called.
+    country_code
+        Two-letter country code (default "gb"). Used to build the API
+        base URL and determine provider/country/language in normalization.
     """
 
     def __init__(
         self,
         settings: Optional[Settings] = None,
         http_client: Optional[httpx.Client] = None,
+        country_code: str = "gb",
     ):
         self._settings = settings
         self._http_client = http_client
+        self.country_code = country_code.lower()
 
         if settings is not None:
             self.app_id = settings.ADZUNA_UK_APP_ID
             self.app_key = settings.ADZUNA_UK_APP_KEY
-            self.api_base_url = (
-                settings.ADZUNA_UK_API_BASE_URL or _ADZUNA_UK_API_BASE_URL_DEFAULT
-            )
+            if self.country_code == "gb" and settings.ADZUNA_UK_API_BASE_URL:
+                self.api_base_url = settings.ADZUNA_UK_API_BASE_URL
+            else:
+                self.api_base_url = _ADZUNA_API_BASE_TEMPLATE.format(
+                    country=self.country_code
+                )
             self.timeout = settings.EXTERNAL_SOURCE_HTTP_TIMEOUT_SECONDS
         else:
             self.app_id = None
             self.app_key = None
-            self.api_base_url = _ADZUNA_UK_API_BASE_URL_DEFAULT
+            self.api_base_url = _ADZUNA_API_BASE_TEMPLATE.format(
+                country=self.country_code
+            )
             self.timeout = 10
 
     # ------------------------------------------------------------------
@@ -257,16 +278,23 @@ class AdzunaUKAPIClient:
         # but we can infer from description or leave as None
         remote_type = None
 
+        provider_name = (
+            _COUNTRY_CONFIG.get(self.country_code, ("GB", "en", "adzuna_uk"))[2]
+        )
+        country, language, _ = _COUNTRY_CONFIG.get(
+            self.country_code, ("GB", "en", "adzuna_uk")
+        )
+
         return ExternalOpportunityCandidate(
-            provider="adzuna_uk",
+            provider=provider_name,
             external_id=external_id,
             source_kind="job",
             title=title,
             company_name=company_name,
             description=description,
             location=location,
-            country="GB",
-            language="en",
+            country=country,
+            language=language,
             source_url=source_url,
             source_published_at=source_published_at,
             contract_type=contract_type,

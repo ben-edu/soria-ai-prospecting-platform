@@ -127,13 +127,15 @@ class TestCatalogProvidersNotInRegistry:
                 f"Catalog provider '{p}' must not be in PROVIDER_REGISTRY"
             )
 
-    def test_registry_still_has_original_three(self):
+    def test_registry_still_has_all_real_providers(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
         assert "france_travail" in PROVIDER_REGISTRY
         assert "adzuna_uk" in PROVIDER_REGISTRY
+        assert "adzuna_fr" in PROVIDER_REGISTRY
+        assert "adzuna_de" in PROVIDER_REGISTRY
         assert "freelancer" in PROVIDER_REGISTRY
-        assert len(PROVIDER_REGISTRY) == 3
+        assert len(PROVIDER_REGISTRY) == 5
 
 
 class TestCatalogProvidersRejectedBySearch:
@@ -241,13 +243,15 @@ class TestExistingProvidersEndpoint:
         resp = client.get("/api/v1/external-sources/providers")
         assert resp.status_code == 200
 
-    def test_providers_still_has_original_three(self, client):
+    def test_providers_still_has_all_real_providers(self, client):
         resp = client.get("/api/v1/external-sources/providers")
         providers = {p["provider"] for p in resp.json()["providers"]}
         assert "france_travail" in providers
         assert "adzuna_uk" in providers
+        assert "adzuna_fr" in providers
+        assert "adzuna_de" in providers
         assert "freelancer" in providers
-        assert len(providers) == 3
+        assert len(providers) == 5
 
     def test_providers_does_not_include_catalog_providers(self, client):
         resp = client.get("/api/v1/external-sources/providers")
