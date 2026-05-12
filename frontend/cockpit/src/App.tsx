@@ -1,4 +1,5 @@
-import { Admin, Resource } from "react-admin";
+import { Admin, Resource, CustomRoutes } from "react-admin";
+import { Route } from "react-router-dom";
 import { dataProvider } from "./dataProvider";
 import { Layout } from "./Layout";
 import {
@@ -48,7 +49,7 @@ import {
   FollowUpEdit,
   FollowUpShow,
 } from "./resources/followUps";
-import { ExternalSourceSearch } from "./resources/externalSources";
+import { ExternalSourceSearch, SourceCatalog } from "./resources/externalSources";
 import { SourceRecordList, SourceRecordShow } from "./resources/sourceRecords";
 
 export const App = () => (
@@ -57,6 +58,9 @@ export const App = () => (
     layout={Layout}
     title="SORIA Prospecting Cockpit"
   >
+    <CustomRoutes>
+      <Route path="/source-catalog" element={<SourceCatalog />} />
+    </CustomRoutes>
     <Resource
       name="companies"
       list={CompanyList}
