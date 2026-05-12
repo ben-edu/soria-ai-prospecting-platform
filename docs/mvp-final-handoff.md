@@ -251,6 +251,14 @@ The following improvements are candidates for future phases:
 
 ---
 
+## Post-MVP Update — Phase 12B (2026-05-12)
+
+Phase 12B added a read-only **French Freelance Source Catalog** — a reference directory of five French freelance platforms (Free-Work, Codeur.com, LeHibou, Malt, Comet) displayed in the Cockpit. These are informational entries only: they are not searchable, importable, scrapable, or messageable from within SORIA.
+
+See [Phase 12B documentation](phase-12b-french-freelance-source-catalog.md) for full details.
+
+---
+
 ## Reference Documents
 
 | Document | Description |
@@ -259,3 +267,4 @@ The following improvements are candidates for future phases:
 | [MVP User Guide](mvp-user-guide.md) | Step-by-step operator instructions |
 | [Phase 9 — External Sources](phase-9-external-opportunity-sources.md) | External source architecture and implementation |
 | [Phase 10 — Real External API Foundation](phase-10-real-external-api-foundation.md) | Real API connector architecture |
+| [Phase 12B — French Freelance Source Catalog](phase-12b-french-freelance-source-catalog.md) | French freelance platform reference directory |
