@@ -48,6 +48,7 @@ class TestProvidersEndpoint:
             "adzuna_uk",
             "france_travail",
             "freelancer",
+            "jooble",
         ]
 
 
@@ -347,4 +348,4 @@ class TestServiceLayer:
         assert "france_travail" in PROVIDER_REGISTRY
         assert "adzuna_uk" in PROVIDER_REGISTRY
         assert "freelancer" in PROVIDER_REGISTRY
-        assert len(PROVIDER_REGISTRY) == 5
+        assert len(PROVIDER_REGISTRY) == 6

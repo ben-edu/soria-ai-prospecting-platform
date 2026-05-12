@@ -135,7 +135,8 @@ class TestCatalogProvidersNotInRegistry:
         assert "adzuna_fr" in PROVIDER_REGISTRY
         assert "adzuna_de" in PROVIDER_REGISTRY
         assert "freelancer" in PROVIDER_REGISTRY
-        assert len(PROVIDER_REGISTRY) == 5
+        assert "jooble" in PROVIDER_REGISTRY
+        assert len(PROVIDER_REGISTRY) == 6
 
 
 class TestCatalogProvidersRejectedBySearch:
@@ -251,7 +252,8 @@ class TestExistingProvidersEndpoint:
         assert "adzuna_fr" in providers
         assert "adzuna_de" in providers
         assert "freelancer" in providers
-        assert len(providers) == 5
+        assert "jooble" in providers
+        assert len(providers) == 6
 
     def test_providers_does_not_include_catalog_providers(self, client):
         resp = client.get("/api/v1/external-sources/providers")

@@ -214,7 +214,7 @@ class TestProviderRegistration:
     def test_registry_size(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
-        assert len(PROVIDER_REGISTRY) == 5
+        assert len(PROVIDER_REGISTRY) == 6
 
     def test_registry_contains_all_expected(self):
         from app.services.external_sources import PROVIDER_REGISTRY
@@ -225,6 +225,7 @@ class TestProviderRegistration:
             "adzuna_fr",
             "adzuna_de",
             "freelancer",
+            "jooble",
         }
         assert set(PROVIDER_REGISTRY) == expected
 
@@ -273,7 +274,7 @@ class TestProvidersEndpoint:
 
     def test_providers_count(self, client):
         resp = client.get("/api/v1/external-sources/providers")
-        assert len(resp.json()["providers"]) == 5
+        assert len(resp.json()["providers"]) == 6
 
     def test_fr_provider_info(self, client):
         resp = client.get("/api/v1/external-sources/providers")
