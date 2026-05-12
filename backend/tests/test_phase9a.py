@@ -43,6 +43,8 @@ class TestProvidersEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert sorted(data["enabled_providers"]) == [
+            "adzuna_de",
+            "adzuna_fr",
             "adzuna_uk",
             "france_travail",
             "freelancer",
@@ -345,4 +347,4 @@ class TestServiceLayer:
         assert "france_travail" in PROVIDER_REGISTRY
         assert "adzuna_uk" in PROVIDER_REGISTRY
         assert "freelancer" in PROVIDER_REGISTRY
-        assert len(PROVIDER_REGISTRY) == 3
+        assert len(PROVIDER_REGISTRY) == 5

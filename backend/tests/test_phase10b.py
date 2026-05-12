@@ -792,7 +792,7 @@ class TestExistingProvidersNotBroken:
     def test_provider_registry_size(self):
         from app.services.external_sources import PROVIDER_REGISTRY
 
-        assert len(PROVIDER_REGISTRY) == 3
+        assert len(PROVIDER_REGISTRY) == 5
 
     def test_registry_contains_all(self):
         from app.services.external_sources import PROVIDER_REGISTRY
@@ -806,7 +806,7 @@ class TestExistingProvidersNotBroken:
         from app.services import external_sources
 
         providers = external_sources.list_external_source_providers()
-        assert len(providers) == 3
+        assert len(providers) == 5
 
     def test_france_travail_client_has_no_side_effects_on_import(self):
         """Importing france_travail_client does not affect external_sources registry."""
@@ -817,4 +817,6 @@ class TestExistingProvidersNotBroken:
 
         from app.services.external_sources import PROVIDER_REGISTRY
 
-        assert len(PROVIDER_REGISTRY) == 3
+        assert len(PROVIDER_REGISTRY) == 5
+        for p in ("france_travail", "adzuna_uk", "adzuna_fr", "adzuna_de", "freelancer"):
+            assert p in PROVIDER_REGISTRY

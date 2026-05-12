@@ -633,6 +633,284 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
         ]
 
 
+@register_external_source("adzuna_fr")
+class AdzunaFrMockProvider(BaseExternalSourceProvider):
+    """Deterministic mock for Adzuna France (French job board).
+
+    Returns DevOps, cloud, and infrastructure job candidates in France.
+    """
+
+    provider = "adzuna_fr"
+    label = "Adzuna France"
+    country = "FR"
+    source_kind = "job"
+    description = "Offres d'emploi via Adzuna France"
+    language = "fr"
+    supports_real_api = True
+    _credential_fields = ["ADZUNA_UK_APP_ID", "ADZUNA_UK_APP_KEY"]
+
+    _MOCK_CANDIDATES: list[dict] = [
+        {
+            "external_id": "adz-fr-001",
+            "title": "Ingénieur DevOps",
+            "company_name": "CloudBase France SAS",
+            "description": (
+                "Rejoignez notre équipe plateforme pour construire et maintenir"
+                " des pipelines CI/CD et une infrastructure Kubernetes."
+            ),
+            "location": "Paris",
+            "country": "FR",
+            "contract_type": "CDI",
+            "remote_type": "hybrid",
+            "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+        },
+        {
+            "external_id": "adz-fr-002",
+            "title": "Architecte Cloud AWS",
+            "company_name": "TechInnovate France",
+            "description": (
+                "Concevoir et déployer des solutions cloud évolutives"
+                " sur AWS et Azure pour des clients enterprise."
+            ),
+            "location": "Lyon",
+            "country": "FR",
+            "contract_type": "CDI",
+            "remote_type": "remote",
+            "tags": ["cloud", "aws", "azure", "architecture"],
+        },
+        {
+            "external_id": "adz-fr-003",
+            "title": "Administrateur Kubernetes",
+            "company_name": "Numérix Solutions",
+            "description": (
+                "Administration de clusters Kubernetes en production"
+                " pour une plateforme SaaS à grande échelle."
+            ),
+            "location": "Bordeaux",
+            "country": "FR",
+            "contract_type": "CDD",
+            "remote_type": "hybrid",
+            "tags": ["kubernetes", "devops", "cloud", "saas"],
+        },
+        {
+            "external_id": "adz-fr-004",
+            "title": "Ingénieur Sécurité Cloud",
+            "company_name": "CyberDefense FR",
+            "description": (
+                "Sécurisation d'infrastructures cloud multi-comptes"
+                " et mise en place de politiques de conformité."
+            ),
+            "location": "Toulouse",
+            "country": "FR",
+            "contract_type": "CDI",
+            "remote_type": "remote",
+            "tags": ["security", "cloud", "cybersecurity", "compliance"],
+        },
+    ]
+
+    def search(
+        self,
+        query: str,
+        location: Optional[str] = None,
+        limit: int = 10,
+    ) -> list[ExternalOpportunityCandidate]:
+        # Phase 12C — live-mode routing to AdzunaUKAPIClient with country_code="fr"
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.adzuna_uk_client import (
+                        AdzunaUKAPIClient,
+                        AdzunaUKClientError,
+                    )
+                    api_client = AdzunaUKAPIClient(
+                        settings=settings, country_code="fr"
+                    )
+                    return api_client.search_jobs(
+                        query=query, location=location, limit=limit,
+                    )
+                except AdzunaUKClientError as exc:
+                    raise ValueError(
+                        f"Adzuna France search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
+        # Default mock behavior (unchanged)
+        candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
+
+        if location:
+            loc_lower = location.strip().lower()
+            candidates = [
+                c for c in candidates
+                if loc_lower in (c.get("location") or "").lower()
+            ]
+
+        candidates = candidates[:limit]
+
+        return [
+            ExternalOpportunityCandidate(
+                provider=self.provider,
+                external_id=c["external_id"],
+                source_kind=self.source_kind,
+                title=c["title"],
+                company_name=c["company_name"],
+                description=c["description"],
+                location=c["location"],
+                country=self.country,
+                language=self.language,
+                source_url=None,
+                source_published_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
+                contract_type=c["contract_type"],
+                remote_type=c["remote_type"],
+                budget_min=None,
+                budget_max=None,
+                budget_currency=None,
+                tags=c["tags"],
+                raw_payload=c.copy(),
+            )
+            for c in candidates
+        ]
+
+
+@register_external_source("adzuna_de")
+class AdzunaDeMockProvider(BaseExternalSourceProvider):
+    """Deterministic mock for Adzuna Germany (German job board).
+
+    Returns DevOps, cloud, and infrastructure job candidates in Germany.
+    """
+
+    provider = "adzuna_de"
+    label = "Adzuna Germany"
+    country = "DE"
+    source_kind = "job"
+    description = "Jobangebote über Adzuna Deutschland"
+    language = "de"
+    supports_real_api = True
+    _credential_fields = ["ADZUNA_UK_APP_ID", "ADZUNA_UK_APP_KEY"]
+
+    _MOCK_CANDIDATES: list[dict] = [
+        {
+            "external_id": "adz-de-001",
+            "title": "DevOps Engineer",
+            "company_name": "CloudBase GmbH",
+            "description": (
+                "Werden Sie Teil unseres Plattform-Teams und bauen Sie"
+                " CI/CD-Pipelines und Kubernetes-Infrastruktur auf."
+            ),
+            "location": "Berlin",
+            "country": "DE",
+            "contract_type": "permanent",
+            "remote_type": "hybrid",
+            "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+        },
+        {
+            "external_id": "adz-de-002",
+            "title": "Cloud Solutions Architect",
+            "company_name": "TechInnovate Deutschland",
+            "description": (
+                "Entwerfen und implementieren Sie skalierbare Cloud-Lösungen"
+                " auf AWS und Azure für Unternehmenskunden."
+            ),
+            "location": "München",
+            "country": "DE",
+            "contract_type": "permanent",
+            "remote_type": "remote",
+            "tags": ["cloud", "aws", "azure", "architecture"],
+        },
+        {
+            "external_id": "adz-de-003",
+            "title": "Kubernetes Administrator",
+            "company_name": "Numérix Solutions GmbH",
+            "description": (
+                "Administration von Kubernetes-Clustern in der Produktion"
+                " für eine große SaaS-Plattform."
+            ),
+            "location": "Hamburg",
+            "country": "DE",
+            "contract_type": "permanent",
+            "remote_type": "hybrid",
+            "tags": ["kubernetes", "devops", "cloud", "saas"],
+        },
+        {
+            "external_id": "adz-de-004",
+            "title": "Cloud Security Engineer",
+            "company_name": "CyberDefense GmbH",
+            "description": (
+                "Sicherung von Multi-Cloud-Infrastrukturen"
+                " und Implementierung von Compliance-Richtlinien."
+            ),
+            "location": "Frankfurt",
+            "country": "DE",
+            "contract_type": "permanent",
+            "remote_type": "remote",
+            "tags": ["security", "cloud", "cybersecurity", "compliance"],
+        },
+    ]
+
+    def search(
+        self,
+        query: str,
+        location: Optional[str] = None,
+        limit: int = 10,
+    ) -> list[ExternalOpportunityCandidate]:
+        # Phase 12C — live-mode routing to AdzunaUKAPIClient with country_code="de"
+        settings = self._settings
+        if settings is not None and settings.EXTERNAL_SOURCES_MODE != "mock":
+            if self.check_credentials_configured(settings):
+                try:
+                    from app.services.adzuna_uk_client import (
+                        AdzunaUKAPIClient,
+                        AdzunaUKClientError,
+                    )
+                    api_client = AdzunaUKAPIClient(
+                        settings=settings, country_code="de"
+                    )
+                    return api_client.search_jobs(
+                        query=query, location=location, limit=limit,
+                    )
+                except AdzunaUKClientError as exc:
+                    raise ValueError(
+                        f"Adzuna Germany search failed: {exc}"
+                    )
+            # Live mode but credentials missing — safe fallback to mock
+
+        # Default mock behavior (unchanged)
+        candidates = self._filter_by_query(self._MOCK_CANDIDATES, query)
+
+        if location:
+            loc_lower = location.strip().lower()
+            candidates = [
+                c for c in candidates
+                if loc_lower in (c.get("location") or "").lower()
+            ]
+
+        candidates = candidates[:limit]
+
+        return [
+            ExternalOpportunityCandidate(
+                provider=self.provider,
+                external_id=c["external_id"],
+                source_kind=self.source_kind,
+                title=c["title"],
+                company_name=c["company_name"],
+                description=c["description"],
+                location=c["location"],
+                country=self.country,
+                language=self.language,
+                source_url=None,
+                source_published_at=datetime(2025, 9, 15, tzinfo=timezone.utc),
+                contract_type=c["contract_type"],
+                remote_type=c["remote_type"],
+                budget_min=None,
+                budget_max=None,
+                budget_currency=None,
+                tags=c["tags"],
+                raw_payload=c.copy(),
+            )
+            for c in candidates
+        ]
+
+
 @register_external_source("freelancer")
 class FreelancerMockProvider(BaseExternalSourceProvider):
     """Deterministic mock for Freelancer.com (global freelance marketplace).
