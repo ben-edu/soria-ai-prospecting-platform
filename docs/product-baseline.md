@@ -20,6 +20,7 @@ Automate and structure SORIA's prospecting process while maintaining full human 
 - [x] Real external API connector architecture (Phase 10 — configuration foundation, France Travail connector, live gating, Adzuna UK connector, Freelancer connector, mock-mode safety preserved)
 - [x] Imported opportunity review workflow (Phase 11A — imported_pending_review status, Cockpit visibility, status filtering)
 - [x] Imported opportunity review UX (Phase 11B — human-readable status labels, warning badge in list, status choices reordered for review workflow)
+- [x] French freelance source catalog (Phase 12B — read-only reference directory of Free-Work, Codeur.com, LeHibou, Malt, Comet; not searchable/importable; Cockpit UI)
 
 ## MVP Completion Status
 
