@@ -67,6 +67,12 @@ spec:
                 secretKeyRef:
                   name: soria-secrets
                   key: SECRET_KEY
+            - name: JOOBLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: JOOBLE_API_KEY
+                  optional: true
           resources:
             requests:
               cpu: 100m
