@@ -9,6 +9,8 @@ resources:
   - frontend.yaml
   - migrate-job.yaml
   - ingress.yaml
+  - oauth2-proxy.yaml
+  - middleware.yaml
 
 images:
   - name: harbor.proxbenovh.cloud/devops-project-harbor/soria-backend

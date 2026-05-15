@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: soria-prospecting
   namespace: soria-prospecting
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: soria-prospecting-soria-auth-proxy@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -23,6 +25,28 @@ spec:
                 name: soria-cockpit
                 port:
                   number: 80
+  tls:
+    - hosts:
+        - react-admin.behnam.fr
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: soria-oauth-callback
+  namespace: soria-prospecting
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: react-admin.behnam.fr
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: soria-oauth-proxy
+                port:
+                  number: 4180
   tls:
     - hosts:
         - react-admin.behnam.fr
