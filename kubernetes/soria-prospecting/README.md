@@ -27,6 +27,24 @@ kubectl create secret generic soria-secrets \
 postgresql+psycopg://soria:<url-encoded-password>@postgres:5432/soria_prospecting
 ```
 
+## Required OAuth Proxy Secret (manual — not in Git)
+
+The `soria-oauth-proxy` secret must exist in namespace `soria-prospecting` with the following keys:
+
+| Key             | Description                                      |
+|-----------------|--------------------------------------------------|
+| `client-id`     | Keycloak OIDC client ID (`soria-cockpit`)        |
+| `client-secret` | Keycloak OIDC client secret                      |
+| `cookie-secret` | oauth2-proxy cookie encryption secret |
+
+```bash
+kubectl create secret generic soria-oauth-proxy \
+  -n soria-prospecting \
+  --from-literal=client-id='soria-cockpit' \
+  --from-literal=client-secret='<your-client-secret>' \
+  --from-literal=cookie-secret="$(openssl rand -base64 32 | tr -d '\n')"
+```
+
 ## Required Image Pull Secret (manual — not in Git)
 
 The `harbor-regcred` secret must exist in namespace `soria-prospecting` for pulling images from Harbor.

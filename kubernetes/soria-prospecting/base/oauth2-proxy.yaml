@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: soria-oauth-proxy
+  namespace: soria-prospecting
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: soria-oauth-proxy
+  namespace: soria-prospecting
+spec:
+  selector:
+    app: soria-oauth-proxy
+  ports:
+    - port: 4180
+      targetPort: 4180
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soria-oauth-proxy
+  namespace: soria-prospecting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soria-oauth-proxy
+  template:
+    metadata:
+      labels:
+        app: soria-oauth-proxy
+    spec:
+      serviceAccountName: soria-oauth-proxy
+      imagePullSecrets:
+        - name: harbor-regcred
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oauth-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4180
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soria-oauth-proxy
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: soria-oauth-proxy
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: soria-oauth-proxy
+                  key: cookie-secret
+          args:
+            - --provider=keycloak-oidc
+            - --oidc-issuer-url=https://keycloak.behnam.fr/realms/soria
+            - --redirect-url=https://react-admin.behnam.fr/oauth2/callback
+            - --http-address=0.0.0.0:4180
+            - --upstream=static://202
+            - --email-domain=*
+            - --whitelist-domain=react-admin.behnam.fr
+            - --whitelist-domain=keycloak.behnam.fr
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --pass-authorization-header=true
+            - --set-authorization-header=true
+            - --pass-access-token=true
+            - --skip-provider-button=true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
