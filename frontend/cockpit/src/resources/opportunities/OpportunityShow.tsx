@@ -154,70 +154,6 @@ const OpportunityActions = () => {
     }
   };
 
-  const handleGenerateDraft = async () => {
-    setLoading("draft");
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/opportunities/${record.id}/generate-draft`,
-        { method: "POST", headers: { "Content-Type": "application/json" } },
-      );
-      if (!res.ok) {
-        const text = await res.text();
-        let detail = text;
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed.detail) detail = parsed.detail;
-        } catch {
-          /* ignore */
-        }
-        notify(detail, { type: "error" });
-        return;
-      }
-      notify("Draft generated or existing active draft reused", {
-        type: "success",
-      });
-      refresh();
-    } catch (e: unknown) {
-      notify(e instanceof Error ? e.message : "Request failed", {
-        type: "error",
-      });
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleRegenerateDraft = async () => {
-    setLoading("regenerate");
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/opportunities/${record.id}/regenerate-draft`,
-        { method: "POST", headers: { "Content-Type": "application/json" } },
-      );
-      if (!res.ok) {
-        const text = await res.text();
-        let detail = text;
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed.detail) detail = parsed.detail;
-        } catch {
-          /* ignore */
-        }
-        notify(detail, { type: "error" });
-        return;
-      }
-      notify("New draft generated (previous active draft archived)", {
-        type: "success",
-      });
-      refresh();
-    } catch (e: unknown) {
-      notify(e instanceof Error ? e.message : "Request failed", {
-        type: "error",
-      });
-    } finally {
-      setLoading(null);
-    }
-  };
-
   const handleOpenPreview = async () => {
     setPreviewLoading(true);
     try {
@@ -430,58 +366,9 @@ const OpportunityActions = () => {
 
         <Divider sx={{ my: 2 }} />
 
-        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
-          Rule-based draft actions
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={handleGenerateDraft}
-            disabled={loading !== null}
-          >
-            {loading === "draft"
-              ? "Generating..."
-              : "Generate rule-based draft"}
-          </Button>
-          <Button
-            variant="outlined"
-            color="warning"
-            onClick={handleRegenerateDraft}
-            disabled={loading !== null}
-          >
-            {loading === "regenerate"
-              ? "Regenerating..."
-              : "Regenerate rule-based draft"}
-          </Button>
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
         <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 0.5 }}>
-          AI-assisted draft actions
+          Draft
         </Typography>
-        <Box
-          sx={{
-            mb: 1,
-            pl: 0.5,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {"\u2022"} AI draft preview is read-only.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {"\u2022"} Generate AI draft creates or reuses an active draft.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {"\u2022"} Regenerate AI draft archives previous active AI drafts
-            only after successful generation.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {"\u2022"} Human validation is mandatory before any external
-            sending.
-          </Typography>
-        </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button
             variant="contained"
@@ -489,7 +376,7 @@ const OpportunityActions = () => {
             onClick={handleAiPreview}
             disabled={loading !== null || aiPreviewLoading}
           >
-            {aiPreviewLoading ? "Loading..." : "AI draft preview"}
+            {aiPreviewLoading ? "Loading..." : "Preview"}
           </Button>
           <Button
             variant="contained"
@@ -497,7 +384,7 @@ const OpportunityActions = () => {
             onClick={handleGenerateAiDraft}
             disabled={loading !== null}
           >
-            {loading === "ai-draft" ? "Generating..." : "Generate AI draft"}
+            {loading === "ai-draft" ? "Generating..." : "Generate draft"}
           </Button>
           <Button
             variant="outlined"
@@ -507,7 +394,7 @@ const OpportunityActions = () => {
           >
             {loading === "regenerate-ai"
               ? "Regenerating..."
-              : "Regenerate AI draft"}
+              : "Regenerate draft"}
           </Button>
         </Stack>
 
