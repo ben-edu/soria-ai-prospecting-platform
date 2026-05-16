@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     AI_DRAFT_PROMPT_VERSION: str = "ai-draft-v1"
 
     # ------------------------------------------------------------------
+    # DeepSeek AI draft provider configuration (Phase 14B)
+    # ------------------------------------------------------------------
+    DEEPSEEK_API_KEY: Optional[str] = None
+    DEEPSEEK_MODEL: str = "deepseek-v4-flash"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    AI_DRAFT_TEMPERATURE: float = 0.4
+    AI_DRAFT_MAX_TOKENS: int = 1800
+
+    # ------------------------------------------------------------------
     # External source API configuration (Phase 10A)
     # ------------------------------------------------------------------
     EXTERNAL_SOURCES_MODE: str = "mock"
