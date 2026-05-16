@@ -5,28 +5,44 @@ import {
   Layout as RALayout,
   Menu,
   TitlePortal,
-  useResourceDefinitions,
 } from "react-admin";
 import BookIcon from "@mui/icons-material/Book";
 import LogoutIcon from "@mui/icons-material/Logout";
+import SearchIcon from "@mui/icons-material/Search";
+import WorkIcon from "@mui/icons-material/Work";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import { Box, IconButton, Tooltip } from "@mui/material";
 
-const CustomMenu = () => {
-  const resources = useResourceDefinitions();
-
-  return (
-    <Menu>
-      {Object.keys(resources).map((name) => (
-        <Menu.ResourceItem key={name} name={name} />
-      ))}
-      <Menu.Item
-        to="/source-catalog"
-        primaryText="Source Catalog"
-        leftIcon={<BookIcon />}
-      />
-    </Menu>
-  );
-};
+const CustomMenu = () => (
+  <Menu>
+    <Menu.Item
+      to="/external-sources"
+      primaryText="External Search"
+      leftIcon={<SearchIcon />}
+    />
+    <Menu.Item
+      to="/opportunities"
+      primaryText="Opportunities"
+      leftIcon={<WorkIcon />}
+    />
+    <Menu.Item
+      to="/message-drafts"
+      primaryText="Message Drafts"
+      leftIcon={<MailOutlineIcon />}
+    />
+    <Menu.Item
+      to="/follow-ups"
+      primaryText="Follow-ups"
+      leftIcon={<ScheduleIcon />}
+    />
+    <Menu.Item
+      to="/source-catalog"
+      primaryText="Source Catalog"
+      leftIcon={<BookIcon />}
+    />
+  </Menu>
+);
 
 const CustomAppBar = () => {
   const handleLogout = () => {
