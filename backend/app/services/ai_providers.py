@@ -311,6 +311,7 @@ class DeepSeekProvider:
         profile_context = prompt_context.get("profile_context", "")
         user_context = prompt_context.get("user_context", {})
         draft_type = prompt_context.get("draft_type", "prospecting_email")
+        language_hint = prompt_context.get("language_hint", "unknown")
 
         format_instructions = (
             "Tu dois répondre UNIQUEMENT avec un objet JSON valide "
@@ -331,7 +332,8 @@ class DeepSeekProvider:
             '  "portfolio_points_used": ["..."],\n'
             '  "safety_notes": ["..."]\n'
             '}\n\n'
-            f"Type de message demandé : {draft_type}"
+            f"Type de message demandé : {draft_type}\n"
+            f"Langue détectée (language_hint) : {language_hint}"
         )
 
         system_content = (

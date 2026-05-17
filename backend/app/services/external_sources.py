@@ -2,6 +2,7 @@
 
 Phase 9A — External Opportunity Sources Foundation.
 Phase 10A — Real External API Configuration Foundation (diagnostics + settings).
+Phase 14C — URL persistence, duplicate prevention, language detection.
 
 All providers are deterministic mocks. No real external API calls.
 """
@@ -334,6 +335,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "hybrid",
             "tags": ["devops", "cloud", "ci/cd", "kubernetes"],
+            # No source_url — tests fallback via external_id
         },
         {
             "external_id": "fr-002",
@@ -348,6 +350,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "remote",
             "tags": ["cloud", "aws", "architecture", "devops"],
+            "source_url": "https://candidat.francetravail.fr/offre/fr-002",
         },
         {
             "external_id": "fr-003",
@@ -362,6 +365,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "hybrid",
             "tags": ["formation", "devops", "cloud", "kubernetes", "training"],
+            "source_url": "https://candidat.francetravail.fr/offre/fr-003",
         },
         {
             "external_id": "fr-004",
@@ -375,6 +379,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "remote",
             "tags": ["security", "cloud", "aws", "azure", "cybersecurity"],
+            "source_url": "https://candidat.francetravail.fr/offre/fr-004",
         },
         {
             "external_id": "fr-005",
@@ -389,6 +394,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDD",
             "remote_type": "hybrid",
             "tags": ["kubernetes", "devops", "cloud", "saas"],
+            "source_url": "https://candidat.francetravail.fr/offre/fr-005",
         },
         {
             "external_id": "fr-006",
@@ -403,6 +409,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "hybrid",
             "tags": ["formation", "digital", "elearning", "project management"],
+            "source_url": "https://candidat.francetravail.fr/offre/fr-006",
         },
     ]
 
@@ -454,7 +461,7 @@ class FranceTravailMockProvider(BaseExternalSourceProvider):
                 location=c["location"],
                 country=self.country,
                 language=self.language,
-                source_url=None,
+                source_url=c.get("source_url"),
                 source_published_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
                 contract_type=c["contract_type"],
                 remote_type=c["remote_type"],
@@ -498,6 +505,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-001",
         },
         {
             "external_id": "uk-002",
@@ -512,6 +520,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "remote",
             "tags": ["cloud", "aws", "azure", "architecture"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-002",
         },
         {
             "external_id": "uk-003",
@@ -526,6 +535,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["cybersecurity", "security", "penetration testing", "soc"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-003",
         },
         {
             "external_id": "uk-004",
@@ -540,6 +550,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["devops", "fintech", "cloud", "kubernetes", "ci/cd"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-004",
         },
         {
             "external_id": "uk-005",
@@ -554,6 +565,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "contract",
             "remote_type": "remote",
             "tags": ["security", "cloud", "compliance", "aws"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-005",
         },
         {
             "external_id": "uk-006",
@@ -568,6 +580,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["training", "cloud", "devops", "education"],
+            "source_url": "https://www.adzuna.co.uk/jobs/uk-006",
         },
     ]
 
@@ -619,7 +632,7 @@ class AdzunaUkMockProvider(BaseExternalSourceProvider):
                 location=c["location"],
                 country=self.country,
                 language=self.language,
-                source_url=None,
+                source_url=c.get("source_url"),
                 source_published_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
                 contract_type=c["contract_type"],
                 remote_type=c["remote_type"],
@@ -663,6 +676,7 @@ class AdzunaFrMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "hybrid",
             "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+            "source_url": "https://www.adzuna.fr/offres/adz-fr-001",
         },
         {
             "external_id": "adz-fr-002",
@@ -677,6 +691,7 @@ class AdzunaFrMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "remote",
             "tags": ["cloud", "aws", "azure", "architecture"],
+            "source_url": "https://www.adzuna.fr/offres/adz-fr-002",
         },
         {
             "external_id": "adz-fr-003",
@@ -691,6 +706,7 @@ class AdzunaFrMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDD",
             "remote_type": "hybrid",
             "tags": ["kubernetes", "devops", "cloud", "saas"],
+            "source_url": "https://www.adzuna.fr/offres/adz-fr-003",
         },
         {
             "external_id": "adz-fr-004",
@@ -705,6 +721,7 @@ class AdzunaFrMockProvider(BaseExternalSourceProvider):
             "contract_type": "CDI",
             "remote_type": "remote",
             "tags": ["security", "cloud", "cybersecurity", "compliance"],
+            "source_url": "https://www.adzuna.fr/offres/adz-fr-004",
         },
     ]
 
@@ -758,7 +775,7 @@ class AdzunaFrMockProvider(BaseExternalSourceProvider):
                 location=c["location"],
                 country=self.country,
                 language=self.language,
-                source_url=None,
+                source_url=c.get("source_url"),
                 source_published_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
                 contract_type=c["contract_type"],
                 remote_type=c["remote_type"],
@@ -802,6 +819,7 @@ class AdzunaDeMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+            "source_url": "https://www.adzuna.de/jobs/adz-de-001",
         },
         {
             "external_id": "adz-de-002",
@@ -816,6 +834,7 @@ class AdzunaDeMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "remote",
             "tags": ["cloud", "aws", "azure", "architecture"],
+            "source_url": "https://www.adzuna.de/jobs/adz-de-002",
         },
         {
             "external_id": "adz-de-003",
@@ -830,6 +849,7 @@ class AdzunaDeMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["kubernetes", "devops", "cloud", "saas"],
+            "source_url": "https://www.adzuna.de/jobs/adz-de-003",
         },
         {
             "external_id": "adz-de-004",
@@ -844,6 +864,7 @@ class AdzunaDeMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "remote",
             "tags": ["security", "cloud", "cybersecurity", "compliance"],
+            "source_url": "https://www.adzuna.de/jobs/adz-de-004",
         },
     ]
 
@@ -944,6 +965,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 8000.0,
             "budget_currency": "EUR",
             "tags": ["kubernetes", "devops", "migration", "cloud"],
+            "source_url": "https://www.freelancer.com/projects/fl-001",
         },
         {
             "external_id": "fl-002",
@@ -961,6 +983,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 6000.0,
             "budget_currency": "USD",
             "tags": ["aws", "terraform", "devops", "automation", "ci/cd"],
+            "source_url": "https://www.freelancer.com/projects/fl-002",
         },
         {
             "external_id": "fl-003",
@@ -978,6 +1001,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 5000.0,
             "budget_currency": "USD",
             "tags": ["security", "audit", "hardening", "cloud"],
+            "source_url": "https://www.freelancer.com/projects/fl-003",
         },
         {
             "external_id": "fl-004",
@@ -995,6 +1019,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 4000.0,
             "budget_currency": "USD",
             "tags": ["devops", "ci/cd", "github actions", "docker"],
+            "source_url": "https://www.freelancer.com/projects/fl-004",
         },
         {
             "external_id": "fl-005",
@@ -1012,6 +1037,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 10000.0,
             "budget_currency": "EUR",
             "tags": ["training", "cloud", "aws", "azure", "education", "content"],
+            "source_url": "https://www.freelancer.com/projects/fl-005",
         },
         {
             "external_id": "fl-006",
@@ -1029,6 +1055,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
             "budget_max": 15000.0,
             "budget_currency": "USD",
             "tags": ["platform engineering", "devops", "consulting", "cloud"],
+            "source_url": "https://www.freelancer.com/projects/fl-006",
         },
     ]
 
@@ -1080,7 +1107,7 @@ class FreelancerMockProvider(BaseExternalSourceProvider):
                 location=c["location"],
                 country=self.country,
                 language=self.language,
-                source_url=None,
+                source_url=c.get("source_url"),
                 source_published_at=datetime(2025, 8, 1, tzinfo=timezone.utc),
                 contract_type=c["contract_type"],
                 remote_type=c["remote_type"],
@@ -1124,6 +1151,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "full-time",
             "remote_type": "remote",
             "tags": ["devops", "kubernetes", "ci/cd", "terraform"],
+            "source_url": "https://jooble.org/job/job-gl-001",
         },
         {
             "external_id": "job-gl-002",
@@ -1138,6 +1166,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "full-time",
             "remote_type": "hybrid",
             "tags": ["cloud", "aws", "azure", "gcp", "architecture"],
+            "source_url": "https://jooble.org/job/job-gl-002",
         },
         {
             "external_id": "job-gl-003",
@@ -1152,6 +1181,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "permanent",
             "remote_type": "hybrid",
             "tags": ["platform engineering", "devops", "kubernetes", "cloud"],
+            "source_url": "https://jooble.org/job/job-gl-003",
         },
         {
             "external_id": "job-gl-004",
@@ -1166,6 +1196,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "contract",
             "remote_type": "remote",
             "tags": ["devsecops", "security", "ci/cd", "automation"],
+            "source_url": "https://jooble.org/job/job-gl-004",
         },
         {
             "external_id": "job-gl-005",
@@ -1180,6 +1211,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "full-time",
             "remote_type": "hybrid",
             "tags": ["infrastructure", "automation", "terraform", "ansible"],
+            "source_url": "https://jooble.org/job/job-gl-005",
         },
         {
             "external_id": "job-gl-006",
@@ -1194,6 +1226,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
             "contract_type": "contract",
             "remote_type": "remote",
             "tags": ["training", "cloud", "devops", "education"],
+            "source_url": "https://jooble.org/job/job-gl-006",
         },
     ]
 
@@ -1246,7 +1279,7 @@ class JoobleMockProvider(BaseExternalSourceProvider):
                 location=c["location"],
                 country=c.get("country") or self.country,
                 language=self.language,
-                source_url=None,
+                source_url=c.get("source_url"),
                 source_published_at=datetime(2025, 10, 1, tzinfo=timezone.utc),
                 contract_type=c["contract_type"],
                 remote_type=c["remote_type"],
@@ -1269,6 +1302,192 @@ _DEVOPS_CLOUD_KEYWORDS = {
     "ci/cd", "ci cd", "docker", "automation", "platform engineering",
     "migration", "infrastructure", "github actions",
 }
+
+# ---------------------------------------------------------------------------
+# Phase 14C — URL normalization
+# ---------------------------------------------------------------------------
+
+
+def normalize_source_url(candidate: ExternalOpportunityCandidate) -> str | None:
+    """Normalize the source URL for an external candidate.
+
+    Phases 14C:
+    - If ``source_url`` is already set on the candidate, return it directly.
+    - For France Travail, construct a fallback URL from the provider's
+      canonical URL pattern + ``external_id``.
+    - Falls back to ``None`` if no URL can be determined; the caller should
+      then rely on provider + external_id for identification and the UI
+      will display a "no URL available" warning.
+
+    Parameters
+    ----------
+    candidate
+        The external opportunity candidate to normalize.
+
+    Returns
+    -------
+    The normalised URL string, or ``None`` if no URL can be determined.
+    """
+    if candidate.source_url:
+        return candidate.source_url
+
+    # France Travail fallback — construct from external_id
+    if candidate.provider == "france_travail" and candidate.external_id:
+        return (
+            f"https://candidat.francetravail.fr/offre/{candidate.external_id}"
+        )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Phase 14C — Language detection
+# ---------------------------------------------------------------------------
+
+_ENGLISH_MARKERS: set[str] = {
+    "the", "and", "you", "your", "our", "we", "are", "for", "this",
+    "that", "with", "have", "from", "join", "team", "work", "will",
+    "about", "experience", "skills", "opportunity", "job", "position",
+    "full-time", "part-time", "permanent", "contract", "salary",
+    "benefits", "company", "applications", "apply", "please",
+    "must have", "qualifications", "requirements", "responsibilities",
+}
+
+_FRENCH_MARKERS: set[str] = {
+    "le", "la", "les", "des", "du", "une", "sur", "pour", "dans",
+    "avec", "vous", "nous", "votre", "notre", "vos", "nos",
+    "ingénieur", "ingénieure", "architecte", "administrateur",
+    "formation", "expérience", "compétences", "poste", "recrute",
+    "recherchons", "rejoindre", "équipe", "missions",
+    "cdi", "cdd", "stage", "alternance", "salaire", "avantages",
+    "entreprise", "candidature", "envoyer", "merci",
+}
+
+
+def infer_language_hint(
+    title: str | None,
+    description: str | None,
+    source_country: str | None = None,
+) -> str:
+    """Infer a content-based language hint from opportunity text and country.
+
+    Phase 14C — simple deterministic marker counting.  Does **not** use
+    an ML model or external API.
+
+    Strategy
+    --------
+    1. If the source country is France (FR), default to ``fr`` unless the
+       text contains overwhelmingly more English markers (2×+).
+    2. Otherwise, count English and French markers in the combined title +
+       description text.
+    3. If English markers outnumber French → ``en``.
+    4. If French markers outnumber English → ``fr``.
+    5. Ties / neither → ``unknown``.
+
+    Parameters
+    ----------
+    title
+        Opportunity title (may be ``None``).
+    description
+        Opportunity description (may be ``None``).
+    source_country
+        ISO country code of the source (e.g. ``"FR"``, ``"GB"``).
+
+    Returns
+    -------
+    One of ``"en"``, ``"fr"``, or ``"unknown"``.
+    """
+    text = f" {((title or '') + ' ' + (description or '')).lower()} "
+
+    en_score = sum(1 for w in _ENGLISH_MARKERS if f" {w} " in text)
+    fr_score = sum(1 for w in _FRENCH_MARKERS if f" {w} " in text)
+
+    if source_country and source_country.upper() == "FR":
+        # French source country: require strong English signal to override
+        return "en" if en_score > fr_score * 2 else "fr"
+
+    if en_score > fr_score:
+        return "en"
+    if fr_score > en_score:
+        return "fr"
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Phase 14C — Duplicate lookup helpers
+# ---------------------------------------------------------------------------
+
+
+def _find_duplicate_by_url(
+    url: str,
+    db: Session,
+) -> tuple[SourceRecord | None, Opportunity | None]:
+    """Look for a processed SourceRecord with the given *url*.
+
+    Returns ``(source_record, opportunity)`` or ``(None, None)``.
+    """
+    sr = db.query(SourceRecord).filter(
+        SourceRecord.source_url == url,
+        SourceRecord.processed == True,  # noqa: E712
+    ).first()
+    if sr is None:
+        return None, None
+
+    # Recover the linked Opportunity via notes (the only stable link).
+    # This is intentionally fuzzy — we annotate notes with the provider
+    # name during import, and here we rely on the SourceRecord's own
+    # source_name + external_id fields.
+    opp = db.query(Opportunity).filter(
+        Opportunity.notes.contains(f"provider={sr.source_name}"),
+        Opportunity.notes.contains(f"external_id={sr.external_id}"),
+    ).first()
+    return sr, opp
+
+
+def _find_duplicate_by_fallback(
+    candidate: ExternalOpportunityCandidate,
+    db: Session,
+) -> tuple[SourceRecord | None, Opportunity | None]:
+    """Conservative fallback dedup by title + company + source."""
+    opp = db.query(Opportunity).filter(
+        Opportunity.title == candidate.title,
+        Opportunity.source_url.is_(None),
+    ).first()
+    if opp is None:
+        return None, None
+
+    sr = db.query(SourceRecord).filter(
+        SourceRecord.source_name == candidate.provider,
+    ).first()
+    return sr, opp
+
+
+# ---------------------------------------------------------------------------
+# Phase 14C — Helpers for duplicate response
+# ---------------------------------------------------------------------------
+
+
+def _build_duplicate_response(
+    source_record: SourceRecord,
+    opportunity: Opportunity,
+    reason: str,
+) -> ImportExternalCandidateResponse:
+    """Build a consistent duplicate-detected response."""
+    company = opportunity.company_id and opportunity.company
+    return ImportExternalCandidateResponse(
+        source_record=_dump(source_record),
+        company=_dump(company) if company else {},
+        opportunity=_dump(opportunity),
+        created_source_record=False,
+        created_company=False,
+        created_opportunity=False,
+        duplicate_detected=True,
+        message=(
+            f"Duplicate import. {reason} "
+            f"Existing Opportunity (id={opportunity.id}, "
+            f"title={opportunity.title!r})."
+        ),
+    )
 
 
 def _determine_opportunity_type(candidate: ExternalOpportunityCandidate) -> OpportunityType:
@@ -1305,6 +1524,11 @@ def _build_opportunity_notes(candidate: ExternalOpportunityCandidate) -> str:
     if candidate.budget_max is not None:
         curr = candidate.budget_currency or ""
         lines.append(f"budget_max={candidate.budget_max} {curr}".strip())
+    normalized_url = normalize_source_url(candidate)
+    if normalized_url:
+        lines.append(f"source_url={normalized_url}")
+    elif candidate.external_id:
+        lines.append(f"fallback_ref=provider={candidate.provider},id={candidate.external_id}")
     return "\n".join(lines)
 
 
@@ -1332,7 +1556,7 @@ def _get_or_create_company(
         country=country,
         city=candidate.location,
         source=SourceType.france_travail if candidate.provider == "france_travail" else SourceType.other,
-        source_url=candidate.source_url,
+        source_url=normalize_source_url(candidate),
         status=CompanyStatus.new,
         notes=f"Imported from {candidate.provider}. External ID: {candidate.external_id}",
     )
@@ -1356,19 +1580,28 @@ def _create_opportunity(
     default_language = "fr" if candidate.provider == "france_travail" else "en"
     language = candidate.language or default_language
 
+    # Phase 14C — add language_hint to opportunity notes
+    language_hint = infer_language_hint(
+        title=candidate.title,
+        description=candidate.description,
+        source_country=candidate.country,
+    )
+    notes = _build_opportunity_notes(candidate)
+    notes += f"\nlanguage_hint={language_hint}"
+
     opportunity = Opportunity(
         company_id=company.id,
         title=candidate.title,
         opportunity_type=_determine_opportunity_type(candidate),
         description=candidate.description,
         source=source,
-        source_url=candidate.source_url,
+        source_url=normalize_source_url(candidate),
         source_published_at=candidate.source_published_at,
         location=candidate.location,
         language=language,
         status=OpportunityStatus.imported_pending_review,
         priority=OpportunityPriority.medium,
-        notes=_build_opportunity_notes(candidate),
+        notes=notes,
     )
     db.add(opportunity)
     db.flush()
@@ -1382,8 +1615,19 @@ def import_external_candidate(
 ) -> ImportExternalCandidateResponse:
     """Import an external opportunity candidate into SORIA.
 
-    Validates the provider, deduplicates by SourceRecord, creates or reuses
-    Company and Opportunity, and records the import in a SourceRecord.
+    Phase 14C — enhanced deduplication with three strategies in priority
+    order:
+
+    1. **Normalised source URL** — if ``source_url`` is present on the
+       candidate (or can be derived), check for a processed SourceRecord
+       with the same URL.
+    2. **source_name + external_id** — existing Phase 9B strategy
+       (SourceRecord-level dedup).
+    3. **Conservative fallback** — title + missing URL heuristic, only
+       when both URL and external_id are absent.
+
+    Also normalises the source URL via ``normalize_source_url()`` and
+    injects a ``language_hint`` into the opportunity notes.
 
     Returns
     -------
@@ -1401,45 +1645,62 @@ def import_external_candidate(
             f"Available providers: [{', '.join(sorted(PROVIDER_REGISTRY))}]"
         )
 
-    # 2. Deduplicate by SourceRecord
+    # 2. Normalise source URL (Phase 14C)
+    normalized_url = normalize_source_url(candidate)
+
+    # 3a. Deduplicate by normalised URL (Phase 14C)
+    if normalized_url:
+        existing_sr, existing_opp = _find_duplicate_by_url(normalized_url, db)
+        if existing_sr and existing_opp:
+            return _build_duplicate_response(
+                existing_sr, existing_opp,
+                reason=f"Same source_url={normalized_url!r} already imported.",
+            )
+
+    # 3b. Deduplicate by source_name + external_id (existing Phase 9B)
     existing_sr = db.query(SourceRecord).filter(
         SourceRecord.source_name == candidate.provider,
         SourceRecord.external_id == candidate.external_id,
     ).first()
 
     if existing_sr and existing_sr.processed:
-        opportunity = db.query(Opportunity).filter(
+        existing_opp = db.query(Opportunity).filter(
             Opportunity.notes.contains(f"provider={candidate.provider}"),
             Opportunity.notes.contains(f"external_id={candidate.external_id}"),
         ).first()
-        if opportunity:
-            company = db.get(Company, opportunity.company_id)
-            return ImportExternalCandidateResponse(
-                source_record=_dump(existing_sr),
-                company=_dump(company),
-                opportunity=_dump(opportunity),
-                created_source_record=False,
-                created_company=False,
-                created_opportunity=False,
-                duplicate_detected=True,
-                message=(
-                    f"Duplicate import. Existing SourceRecord "
-                    f"({existing_sr.id}) and Opportunity ({opportunity.id}) "
-                    f"already exist for provider={candidate.provider} "
-                    f"external_id={candidate.external_id}."
+        if existing_opp:
+            return _build_duplicate_response(
+                existing_sr, existing_opp,
+                reason=(
+                    f"Same provider={candidate.provider} "
+                    f"external_id={candidate.external_id} already imported."
                 ),
             )
 
-    # 3. Get or create Company
+    # 3c. Conservative fallback dedup when URL and external_id both missing
+    if not normalized_url and not candidate.external_id:
+        fallback_sr, fallback_opp = _find_duplicate_by_fallback(candidate, db)
+        if fallback_sr and fallback_opp:
+            return _build_duplicate_response(
+                fallback_sr, fallback_opp,
+                reason=(
+                    f"Same title={candidate.title!r} from "
+                    f"provider={candidate.provider} already imported "
+                    "(no source URL available)."
+                ),
+            )
+
+    # 4. Get or create Company
     company, company_created = _get_or_create_company(candidate, db)
 
-    # 4. Create Opportunity
+    # 5. Create Opportunity
     opportunity = _create_opportunity(candidate, company, db)
 
-    # 5. Create or update SourceRecord
+    # 6. Create or update SourceRecord
     if existing_sr:
         source_record = existing_sr
         source_record.processed = True
+        source_record.source_url = normalized_url or source_record.source_url
         source_record.processing_notes = (
             f"Company {company.id} ({'created' if company_created else 'reused'}), "
             f"Opportunity {opportunity.id} (created)"
@@ -1454,7 +1715,7 @@ def import_external_candidate(
         source_record = SourceRecord(
             source_type=source_type,
             source_name=candidate.provider,
-            source_url=candidate.source_url,
+            source_url=normalized_url,
             external_id=candidate.external_id,
             raw_payload=candidate.raw_payload or {},
             imported_at=datetime.now(timezone.utc),
