@@ -75,6 +75,8 @@ spec:
                   optional: true
             - name: AI_DRAFT_PROVIDER
               value: "deepseek"
+            - name: AI_DRAFT_MODEL_NAME
+              value: "deepseek-v4-flash"
             - name: DEEPSEEK_API_KEY
               valueFrom:
                 secretKeyRef:
