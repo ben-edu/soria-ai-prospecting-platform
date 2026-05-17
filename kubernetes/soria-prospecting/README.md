@@ -13,14 +13,19 @@ Create the secret `soria-secrets` in namespace `soria-prospecting` with the foll
 | `POSTGRES_PASSWORD`| PostgreSQL password for user `soria`                                        |
 | `DATABASE_URL`     | SQLAlchemy connection string (see format below)                             |
 | `SECRET_KEY`       | FastAPI secret key for session/JWT signing                                  |
+| `DEEPSEEK_API_KEY` | DeepSeek API key for AI draft generation (Phase 14B)                       |
+| `JOOBLE_API_KEY`   | Jooble API key for job search integration (optional)                       |
 
 ```bash
 kubectl create secret generic soria-secrets \
   -n soria-prospecting \
   --from-literal=POSTGRES_PASSWORD='<your-password>' \
   --from-literal=DATABASE_URL='postgresql+psycopg://soria:<url-encoded-password>@postgres:5432/soria_prospecting' \
-  --from-literal=SECRET_KEY='<your-secret-key>'
+  --from-literal=SECRET_KEY='<your-secret-key>' \
+  --from-literal=DEEPSEEK_API_KEY='<your-deepseek-api-key>'
 ```
+
+> **Note:** The `DEEPSEEK_API_KEY` secret is optional (`optional: true`). If it is not present, the DeepSeek provider will fail at runtime with a clear error message. For Phase 14B, the AI draft provider is `deepseek`. Do **not** commit API keys to Git.
 
 **DATABASE_URL format:**
 ```
