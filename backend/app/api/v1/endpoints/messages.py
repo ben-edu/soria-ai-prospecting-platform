@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -12,6 +13,7 @@ from app.models.contact import Contact
 from app.models.message_draft import MessageDraft
 from app.models.opportunity import Opportunity
 from app.schemas.message_draft import (
+    DeliveryHelperResponse,
     MessageDraftActionRequest,
     MessageDraftCreate,
     MessageDraftListResponse,
@@ -310,6 +312,78 @@ def mark_draft_sent_manually(
     db.commit()
     db.refresh(draft)
     return draft
+
+
+@router.get("/{message_draft_id}/delivery-helper", response_model=DeliveryHelperResponse)
+def get_delivery_helper(
+    message_draft_id: str,
+    db: Session = Depends(get_db),
+):
+    """Return delivery-channel metadata for a message draft.
+
+    Determines the best sending channel based on available contact
+    email and opportunity source URL. NEVER sends email server-side.
+    """
+    draft = _get_draft_or_404(message_draft_id, db)
+
+    # Load opportunity
+    opportunity = db.get(Opportunity, draft.opportunity_id)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found for this draft")
+
+    # Load contact for recipient email
+    recipient_email: Optional[str] = None
+    if draft.contact_id is not None:
+        contact = db.get(Contact, draft.contact_id)
+        if contact is not None and contact.email:
+            recipient_email = contact.email
+
+    source_url: Optional[str] = opportunity.source_url
+
+    # Build mailto URL if email is available
+    mailto_url: Optional[str] = None
+    if recipient_email:
+        params: dict[str, str] = {}
+        if draft.subject:
+            params["subject"] = draft.subject
+        if draft.body:
+            params["body"] = draft.body
+        query_string = urlencode(params)
+        mailto_url = f"mailto:{recipient_email}?{query_string}"
+
+    # Determine channel, copy_mode, recommended_action, and warning
+    warning: Optional[str] = None
+    if recipient_email:
+        channel = "email"
+        recipient_status = "email_available"
+        copy_mode = "email"
+        recommended_action = "Open your email client to send this draft"
+    elif source_url:
+        channel = "application_url"
+        recipient_status = "email_missing"
+        copy_mode = "platform"
+        recommended_action = "Open the source/application URL to send via the platform"
+    else:
+        channel = "manual_research"
+        recipient_status = "email_missing"
+        copy_mode = "manual"
+        recommended_action = "Research the contact information for this opportunity"
+        warning = "No recipient email and no source URL available. Manual contact research is required."
+
+    return DeliveryHelperResponse(
+        draft_id=draft.id,
+        opportunity_id=draft.opportunity_id,
+        subject=draft.subject,
+        body=draft.body,
+        recipient_email=recipient_email,
+        source_url=source_url,
+        channel=channel,
+        recipient_status=recipient_status,
+        recommended_action=recommended_action,
+        mailto_url=mailto_url,
+        copy_mode=copy_mode,
+        warning=warning,
+    )
 
 
 @router.post("/{message_draft_id}/archive", response_model=MessageDraftRead)

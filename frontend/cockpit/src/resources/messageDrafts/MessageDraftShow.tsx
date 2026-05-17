@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -12,6 +13,7 @@ import {
   DialogContentText,
   DialogTitle,
   Divider,
+  Link,
   Stack,
   TextField as MuiTextField,
   Typography,
@@ -446,6 +448,212 @@ const MessageContentCard = () => {
   );
 };
 
+// ---- Delivery Helper Card ----
+
+interface DeliveryHelperData {
+  draft_id: string;
+  opportunity_id: string;
+  subject: string | null;
+  body: string;
+  recipient_email: string | null;
+  source_url: string | null;
+  channel: string;
+  recipient_status: string;
+  recommended_action: string;
+  mailto_url: string | null;
+  copy_mode: string;
+  warning: string | null;
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  email: "Send via Email",
+  application_url: "Send via Platform/Application",
+  manual_research: "Manual Contact Research Needed",
+};
+
+const CHANNEL_COLORS: Record<string, "success" | "info" | "warning"> = {
+  email: "success",
+  application_url: "info",
+  manual_research: "warning",
+};
+
+const DeliveryHelperCard = () => {
+  const { record, isLoading } = useShowContext();
+  const notify = useNotify();
+  const [data, setData] = useState<DeliveryHelperData | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!record || isLoading) return;
+
+    const fetchHelper = async () => {
+      setFetching(true);
+      setFetchError(null);
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/message-drafts/${record.id as string}/delivery-helper`,
+        );
+        if (!res.ok) {
+          const text = await res.text();
+          let detail = text;
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed.detail) detail = parsed.detail;
+          } catch {
+            /* ignore */
+          }
+          setFetchError(detail);
+          return;
+        }
+        const json = (await res.json()) as DeliveryHelperData;
+        setData(json);
+      } catch (e: unknown) {
+        setFetchError(e instanceof Error ? e.message : "Request failed");
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    void fetchHelper();
+  }, [record, isLoading]);
+
+  const handleCopy = async (text: string | null, label: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      notify(`${label} copied to clipboard`, { type: "success" });
+    } catch {
+      notify(`Failed to copy ${label.toLowerCase()}`, { type: "error" });
+    }
+  };
+
+  if (isLoading || !record) return null;
+
+  return (
+    <Card variant="outlined" sx={{ mb: 3 }}>
+      <CardHeader
+        title="Delivery Helper"
+        titleTypographyProps={{ variant: "subtitle2" }}
+      />
+      <CardContent sx={{ pt: 0 }}>
+        {fetching && (
+          <Typography variant="body2" color="text.secondary">
+            Loading delivery info...
+          </Typography>
+        )}
+
+        {fetchError && (
+          <Alert severity="error" sx={{ py: 0, px: 1.5, mb: 1 }}>
+            {fetchError}
+          </Alert>
+        )}
+
+        {data && (
+          <Stack spacing={1.5}>
+            {/* Channel Badge */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="body2" color="text.secondary">
+                Channel:
+              </Typography>
+              <Chip
+                label={CHANNEL_LABELS[data.channel] ?? data.channel}
+                color={CHANNEL_COLORS[data.channel] ?? "default"}
+                size="small"
+              />
+            </Box>
+
+            {/* Warning */}
+            {data.warning && (
+              <Alert severity="warning" sx={{ py: 0, px: 1.5 }}>
+                {data.warning}
+              </Alert>
+            )}
+
+            {/* Recommended Action */}
+            <Typography variant="body2" color="text.secondary">
+              {data.recommended_action}
+            </Typography>
+
+            {/* Recipient Email */}
+            {data.recipient_email && (
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Recipient:
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {data.recipient_email}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Source URL */}
+            {data.source_url && (
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Source / Application URL:
+                </Typography>
+                <Link
+                  href={data.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="body2"
+                >
+                  {data.source_url}
+                </Link>
+              </Box>
+            )}
+
+            <Divider />
+
+            {/* Action Buttons */}
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {data.mailto_url && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  href={data.mailto_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open email draft
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => handleCopy(data.subject, "Subject")}
+              >
+                Copy subject
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => handleCopy(data.body, "Body")}
+              >
+                Copy body
+              </Button>
+              {data.source_url && (
+                <Button
+                  variant="outlined"
+                  color="info"
+                  size="small"
+                  href={data.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open source/apply page
+                </Button>
+              )}
+            </Stack>
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ---- Show Actions ----
 
 const ShowActions = () => (
@@ -461,6 +669,7 @@ export const MessageDraftShow = () => (
   <Show actions={<ShowActions />}>
     <SimpleShowLayout>
       <WorkflowPanel />
+      <DeliveryHelperCard />
       <MessageContentCard />
       <AiAuditCard />
       <TextField source="id" />
