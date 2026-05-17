@@ -87,3 +87,25 @@ class MessageDraftListResponse(BaseModel):
 
 class MessageDraftActionRequest(BaseModel):
     review_notes: Optional[str] = None
+
+
+class DeliveryHelperResponse(BaseModel):
+    """Read-only delivery helper info for a message draft.
+
+    Determines the best channel for sending the draft based on
+    available contact email and opportunity source URL.
+    Never sends email server-side.
+    """
+
+    draft_id: UUID
+    opportunity_id: UUID
+    subject: Optional[str] = None
+    body: str
+    recipient_email: Optional[str] = None
+    source_url: Optional[str] = None
+    channel: str  # "email" | "platform_message" | "application_url" | "manual_research"
+    recipient_status: str  # "email_available" | "email_missing"
+    recommended_action: str
+    mailto_url: Optional[str] = None
+    copy_mode: str  # "email" | "platform" | "manual"
+    warning: Optional[str] = None

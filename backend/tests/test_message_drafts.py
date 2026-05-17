@@ -515,3 +515,198 @@ def test_health_endpoint_still_works(client):
     data = resp.json()
     assert data["status"] == "ok"
     assert data["app"] == "SORIA AI Prospecting Platform"
+
+
+# --- Delivery helper tests ---
+
+
+def _setup_delivery_common(client, **opportunity_overrides):
+    """Create company, contact with email, opportunity, and message draft.
+
+    Returns (opp_id, draft_id, company_id, contact_id).
+    """
+    company_resp = _create_company(client)
+    assert company_resp.status_code == 201
+    company_id = company_resp.json()["id"]
+
+    contact_resp = _create_contact(client, company_id)
+    assert contact_resp.status_code == 201
+    contact_id = contact_resp.json()["id"]
+
+    opp_payload = {
+        "company_id": str(company_id),
+        "contact_id": str(contact_id),
+        "title": "Service Test",
+        "opportunity_type": "devops_cloud",
+        "source": "manual",
+    }
+    opp_payload.update(opportunity_overrides)
+    opp_resp = client.post("/api/v1/opportunities", json=opp_payload)
+    assert opp_resp.status_code == 201
+    opp_id = opp_resp.json()["id"]
+
+    draft_resp = _create_message_draft(client, opp_id, subject="Test Subject")
+    assert draft_resp.status_code == 201
+    draft_id = draft_resp.json()["id"]
+
+    return opp_id, draft_id, company_id, contact_id
+
+
+def test_delivery_helper_email_channel(client):
+    """Delivery helper returns email channel when contact email exists."""
+    _, draft_id, _, _ = _setup_delivery_common(client)
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["channel"] == "email"
+    assert data["recipient_status"] == "email_available"
+    assert data["recipient_email"] == "jean.dupont@example.com"
+    assert data["copy_mode"] == "email"
+    assert data["mailto_url"] is not None
+    assert data["mailto_url"].startswith("mailto:jean.dupont@example.com?")
+    assert data["subject"] == "Test Subject"
+    assert data["body"] == "Bonjour, nous souhaitons vous proposer nos services..."
+    assert data["draft_id"] == draft_id
+    assert data["warning"] is None
+
+
+def test_delivery_helper_mailto_url_encoded(client):
+    """Delivery helper mailto_url is properly URL-encoded."""
+    _, draft_id, _, _ = _setup_delivery_common(client)
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    data = resp.json()
+    mailto = data["mailto_url"]
+    # Must contain URL-encoded content — the body contains spaces, accents, etc.
+    assert "mailto:jean.dupont@example.com" in mailto
+    assert "subject=Test+Subject" in mailto or "subject=Test%20Subject" in mailto
+    assert "body=" in mailto
+    # Verify it does NOT use raw unencoded spaces
+    assert " " not in mailto
+
+
+def test_delivery_helper_platform_channel_when_email_missing(client):
+    """Delivery helper returns application_url channel when email missing but source_url exists."""
+    # Create opportunity with source_url but no contact
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = client.post("/api/v1/opportunities", json={
+        "company_id": str(company_id),
+        "title": "DevOps Mission",
+        "opportunity_type": "devops_cloud",
+        "source": "france_travail",
+        "source_url": "https://example.com/apply/123",
+    })
+    assert opp_resp.status_code == 201
+    opp_id = opp_resp.json()["id"]
+
+    draft_resp = _create_message_draft(client, opp_id)
+    assert draft_resp.status_code == 201
+    draft_id = draft_resp.json()["id"]
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["channel"] == "application_url"
+    assert data["recipient_status"] == "email_missing"
+    assert data["recipient_email"] is None
+    assert data["source_url"] == "https://example.com/apply/123"
+    assert data["copy_mode"] == "platform"
+    assert data["mailto_url"] is None
+    assert data["warning"] is None
+
+
+def test_delivery_helper_manual_research_when_both_missing(client):
+    """Delivery helper returns manual_research when both email and source_url are missing."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    opp_resp = client.post("/api/v1/opportunities", json={
+        "company_id": str(company_id),
+        "title": "Unknown Mission",
+        "opportunity_type": "other",
+        "source": "manual",
+        # no source_url, no contact_id
+    })
+    assert opp_resp.status_code == 201
+    opp_id = opp_resp.json()["id"]
+
+    draft_resp = _create_message_draft(client, opp_id)
+    assert draft_resp.status_code == 201
+    draft_id = draft_resp.json()["id"]
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["channel"] == "manual_research"
+    assert data["recipient_status"] == "email_missing"
+    assert data["recipient_email"] is None
+    assert data["source_url"] is None
+    assert data["copy_mode"] == "manual"
+    assert data["mailto_url"] is None
+    assert data["warning"] is not None
+    assert "manual" in data["warning"].lower()
+
+
+def test_delivery_helper_no_mailto_when_no_email(client):
+    """Delivery helper returns null mailto_url when no recipient email."""
+    company_resp = _create_company(client)
+    company_id = company_resp.json()["id"]
+
+    # Create contact without email
+    contact_resp = _create_contact(client, company_id, email=None)
+    assert contact_resp.status_code == 201
+    contact_id = contact_resp.json()["id"]
+
+    opp_resp = client.post("/api/v1/opportunities", json={
+        "company_id": str(company_id),
+        "contact_id": str(contact_id),
+        "title": "Test Opp",
+        "opportunity_type": "other",
+        "source": "manual",
+    })
+    assert opp_resp.status_code == 201
+    opp_id = opp_resp.json()["id"]
+
+    draft_resp = _create_message_draft(client, opp_id)
+    assert draft_resp.status_code == 201
+    draft_id = draft_resp.json()["id"]
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["mailto_url"] is None
+    assert data["recipient_email"] is None
+
+
+def test_delivery_helper_not_found(client):
+    """Delivery helper returns 404 for non-existent draft."""
+    resp = client.get(f"/api/v1/message-drafts/{uuid4()}/delivery-helper")
+    assert resp.status_code == 404
+
+
+def test_delivery_helper_no_server_sending(client):
+    """Verify the delivery helper endpoint does NOT send any email.
+
+    The endpoint is a read-only GET that returns channel metadata.
+    There is no SMTP config, no send mail call, no outbound connection.
+    This test verifies the response shape contains no sent/sending fields.
+    """
+    _, draft_id, _, _ = _setup_delivery_common(client)
+
+    resp = client.get(f"/api/v1/message-drafts/{draft_id}/delivery-helper")
+    assert resp.status_code == 200
+    data = resp.json()
+    # Must not contain any sending-related fields
+    assert "sent_at" not in data
+    assert "sent" not in data
+    assert "transmitted" not in data
+    # The response is purely advisory metadata
+    assert set(data.keys()) == {
+        "draft_id", "opportunity_id", "subject", "body",
+        "recipient_email", "source_url", "channel",
+        "recipient_status", "recommended_action", "mailto_url",
+        "copy_mode", "warning",
+    }
