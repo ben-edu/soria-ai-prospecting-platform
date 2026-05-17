@@ -591,7 +591,7 @@ export const ExternalSourceSearch = () => {
                       )}
 
                       {/* Source URL */}
-                      {candidate.source_url && (
+                      {candidate.source_url ? (
                         <Typography variant="body2">
                           <strong>Source:</strong>{" "}
                           <a
@@ -602,6 +602,13 @@ export const ExternalSourceSearch = () => {
                             {candidate.source_url}
                           </a>
                         </Typography>
+                      ) : (
+                        <Alert severity="warning" sx={{ py: 0, px: 1.5 }}>
+                          No source URL available.{" "}
+                          {candidate.external_id && (
+                            <>External ref: {candidate.external_id}</>
+                          )}
+                        </Alert>
                       )}
 
                       {/* Import result */}

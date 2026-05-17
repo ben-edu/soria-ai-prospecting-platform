@@ -3,6 +3,7 @@ import {
   DateField,
   EditButton,
   FunctionField,
+  Labeled,
   ListButton,
   ReferenceField,
   Show,
@@ -22,6 +23,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Link,
   Stack,
   TextField as MuiTextField,
   Typography,
@@ -616,7 +618,40 @@ export const OpportunityShow = () => (
       <TextField source="description" />
       <TextField source="detected_need" />
       <TextField source="source" />
-      <TextField source="source_url" />
+      <Labeled label="Source URL">
+        <FunctionField
+          render={(record: { source_url?: string | null; source?: string; notes?: string | null }) => {
+            const url = record.source_url;
+            if (url) {
+              return (
+                <Link href={url} target="_blank" rel="noopener noreferrer">
+                  {url}
+                </Link>
+              );
+            }
+            // Try to extract a fallback reference from notes
+            const notes = record.notes ?? "";
+            const fallbackMatch = notes.match(/fallback_ref=([^\n]+)/);
+            if (fallbackMatch) {
+              return (
+                <Stack spacing={0.5}>
+                  <Alert severity="warning" sx={{ py: 0, px: 1.5 }}>
+                    No source URL available from provider
+                  </Alert>
+                  <Typography variant="caption" color="text.secondary">
+                    External reference: {fallbackMatch[1]}
+                  </Typography>
+                </Stack>
+              );
+            }
+            return (
+              <Alert severity="warning" sx={{ py: 0, px: 1.5 }}>
+                No source URL available from provider
+              </Alert>
+            );
+          }}
+        />
+      </Labeled>
       <DateField source="source_published_at" showTime emptyText="N/A" />
       <TextField source="location" />
       <TextField source="language" />

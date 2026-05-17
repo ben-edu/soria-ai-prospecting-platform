@@ -5,6 +5,7 @@ and its context, including system safety instructions and user/entity
 data. Designed to be consumed by AI providers.
 
 Phase 14B: enriched with Behnam profile context and draft type inference.
+Phase 14C: added language_hint support for French/English detection.
 """
 
 from typing import Optional
@@ -14,6 +15,7 @@ from app.models.company import Company
 from app.models.contact import Contact
 from app.models.offer import Offer
 from app.models.opportunity import Opportunity
+from app.services.external_sources import infer_language_hint
 
 # Default profile identifiers
 DEFAULT_PROMPT_PROFILE = "prospecting_fr_v1"
@@ -31,7 +33,13 @@ SYSTEM_INSTRUCTIONS = (
     "en France, à rédiger des messages de prospection personnalisés.\n\n"
     "Règles impératives :\n"
     "1. Rédige en français sauf si l'offre ou le contexte est clairement "
-    "en anglais.\n"
+    "en anglais. Un champ language_hint est fourni dans le contexte — "
+    "il indique la langue détectée (en, fr, unknown). Respecte cette "
+    "indication :\n"
+    "   - language_hint=en → rédige en anglais\n"
+    "   - language_hint=fr → rédige en français\n"
+    "   - language_hint=unknown → rédige en français par défaut, sauf si "
+    "le contenu de l'offre est clairement en anglais.\n"
     "2. Le ton doit être professionnel, direct, humain, pas trop long, "
     "pas arrogant, pas générique.\n"
     "3. N'exagère pas le profil de Behnam. Reste factuel.\n"
@@ -165,11 +173,22 @@ def build_prompt_context(
 ) -> dict:
     """Build a structured prompt context for AI draft generation.
 
+    Phase 14C — injects *language_hint* into the returned context so the
+    AI provider can adapt its output language accordingly.
+
     Returns a dict containing metadata, system instructions, entity
-    context, Behnam profile context, draft type, and a safety note.
+    context, Behnam profile context, draft type, a safety note, and a
+    language hint.
     Designed to be consumed by an AI provider's ``generate()`` method.
     """
     draft_type = infer_draft_type(opportunity)
+
+    # Phase 14C — content-based language hint
+    language_hint = infer_language_hint(
+        title=opportunity.title,
+        description=opportunity.description,
+        source_country=None,  # opportunity model has no country field
+    )
 
     user_context = {
         "opportunity": {
@@ -185,6 +204,7 @@ def build_prompt_context(
             "full_name": contact.full_name if contact else "Responsable",
         },
         "draft_type": draft_type,
+        "language_hint": language_hint,
     }
 
     if matched_offer is not None:
@@ -208,5 +228,6 @@ def build_prompt_context(
         "safety_note": SAFETY_NOTE,
         "profile_context": BEHNAM_PROFILE_V1,
         "draft_type": draft_type,
+        "language_hint": language_hint,
         "user_context": user_context,
     }
