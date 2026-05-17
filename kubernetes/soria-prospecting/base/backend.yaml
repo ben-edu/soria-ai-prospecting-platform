@@ -73,6 +73,22 @@ spec:
                   name: soria-secrets
                   key: JOOBLE_API_KEY
                   optional: true
+            - name: AI_DRAFT_PROVIDER
+              value: "deepseek"
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soria-secrets
+                  key: DEEPSEEK_API_KEY
+                  optional: true
+            - name: DEEPSEEK_MODEL
+              value: "deepseek-v4-flash"
+            - name: DEEPSEEK_BASE_URL
+              value: "https://api.deepseek.com"
+            - name: AI_DRAFT_TEMPERATURE
+              value: "0.4"
+            - name: AI_DRAFT_MAX_TOKENS
+              value: "1800"
           resources:
             requests:
               cpu: 100m
