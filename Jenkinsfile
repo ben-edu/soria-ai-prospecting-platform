@@ -14,8 +14,8 @@ pipeline {
         KUBECONFIG        = '/var/lib/jenkins/.kube/config-afpa-k3s'
         K8S_NAMESPACE     = 'soria-prospecting'
         KUSTOMIZE_OVERLAY = 'kubernetes/soria-prospecting/overlays/prod'
-        PUBLIC_HOST       = 'https://react-admin.behnam.fr'
-        VITE_API_BASE_URL = 'https://react-admin.behnam.fr/api/v1'
+        PUBLIC_HOST       = 'https://react-admin.soria-academie.fr'
+        VITE_API_BASE_URL = 'https://react-admin.soria-academie.fr/api/v1'
     }
 
     stages {
@@ -149,7 +149,7 @@ pipeline {
                     kubectl kustomize "${KUSTOMIZE_OVERLAY}" > "/tmp/soria-rendered-${BUILD_NUMBER}.yaml"
 
                     echo "=== rendered important lines ==="
-                    grep -E "soria-backend|soria-cockpit|soria-migrate-seed|react-admin.behnam.fr" "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" | head -80 || true
+                    grep -E "soria-backend|soria-cockpit|soria-migrate-seed|react-admin.soria-academie.fr" "/tmp/soria-rendered-${BUILD_NUMBER}.yaml" | head -80 || true
                 '''
             }
         }
