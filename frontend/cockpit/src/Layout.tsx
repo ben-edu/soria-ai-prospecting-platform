@@ -48,7 +48,7 @@ const CustomAppBar = () => {
   const handleLogout = () => {
     const postLogoutRedirectUri = `${window.location.origin}/`;
     const keycloakLogoutUrl =
-      "https://keycloak.behnam.fr/realms/soria/protocol/openid-connect/logout" +
+      "https://keycloak.soria-academie.fr/realms/soria/protocol/openid-connect/logout" +
       "?client_id=soria-cockpit" +
       `&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
 
