@@ -65,13 +65,13 @@ spec:
                   key: cookie-secret
           args:
             - --provider=keycloak-oidc
-            - --oidc-issuer-url=https://keycloak.behnam.fr/realms/soria
-            - --redirect-url=https://react-admin.behnam.fr/oauth2/callback
+            - --oidc-issuer-url=https://keycloak.soria-academie.fr/realms/soria
+            - --redirect-url=https://react-admin.soria-academie.fr/oauth2/callback
             - --http-address=0.0.0.0:4180
             - --upstream=static://202
             - --email-domain=*
-            - --whitelist-domain=react-admin.behnam.fr
-            - --whitelist-domain=keycloak.behnam.fr
+            - --whitelist-domain=react-admin.soria-academie.fr
+            - --whitelist-domain=keycloak.soria-academie.fr
             - --cookie-secure=true
             - --cookie-samesite=lax
             - --reverse-proxy=true

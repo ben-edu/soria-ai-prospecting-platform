@@ -28,8 +28,8 @@ KCADM="/opt/bitnami/keycloak/bin/kcadm.sh"
 
 REALM_NAME="soria"
 CLIENT_ID="soria-cockpit"
-APP_BASE_URL="https://react-admin.behnam.fr"
-CALLBACK_URL="https://react-admin.behnam.fr/oauth2/callback"
+APP_BASE_URL="https://react-admin.soria-academie.fr"
+CALLBACK_URL="https://react-admin.soria-academie.fr/oauth2/callback"
 
 KC_ADMIN_PASS=""
 
@@ -110,10 +110,10 @@ if [ -z "${CLIENT_UUID}" ]; then
     -s implicitFlowEnabled=false \
     -s directAccessGrantsEnabled=false \
     -s serviceAccountsEnabled=false \
-    -s 'redirectUris=["https://react-admin.behnam.fr/oauth2/callback"]' \
-    -s 'webOrigins=["https://react-admin.behnam.fr"]' \
-    -s 'rootUrl="https://react-admin.behnam.fr"' \
-    -s 'baseUrl="https://react-admin.behnam.fr"' \
+    -s 'redirectUris=["https://react-admin.soria-academie.fr/oauth2/callback"]' \
+    -s 'webOrigins=["https://react-admin.soria-academie.fr"]' \
+    -s 'rootUrl="https://react-admin.soria-academie.fr"' \
+    -s 'baseUrl="https://react-admin.soria-academie.fr"' \
     --config "${KC_CONFIG}"
 
   CLIENT_JSON="$(kcadm get clients \
@@ -148,10 +148,10 @@ kcadm update "clients/${CLIENT_UUID}" -r "${REALM_NAME}" \
   -s implicitFlowEnabled=false \
   -s directAccessGrantsEnabled=false \
   -s serviceAccountsEnabled=false \
-  -s 'redirectUris=["https://react-admin.behnam.fr/oauth2/callback"]' \
-  -s 'webOrigins=["https://react-admin.behnam.fr"]' \
-  -s 'rootUrl="https://react-admin.behnam.fr"' \
-  -s 'baseUrl="https://react-admin.behnam.fr"' \
+  -s 'redirectUris=["https://react-admin.soria-academie.fr/oauth2/callback"]' \
+  -s 'webOrigins=["https://react-admin.soria-academie.fr"]' \
+  -s 'rootUrl="https://react-admin.soria-academie.fr"' \
+  -s 'baseUrl="https://react-admin.soria-academie.fr"' \
   --config "${KC_CONFIG}"
 
 echo "    OK — client configuration applied."
