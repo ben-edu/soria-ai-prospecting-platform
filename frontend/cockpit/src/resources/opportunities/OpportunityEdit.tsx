@@ -1,14 +1,21 @@
+import { useState } from "react";
 import {
+  DateTimeInput,
   Edit,
+  ListButton,
   NumberInput,
   ReferenceInput,
   SelectInput,
+  ShowButton,
   SimpleForm,
   TextInput,
   TopToolbar,
-  ListButton,
-  ShowButton,
+  useNotify,
+  useRecordContext,
+  useRefresh,
 } from "react-admin";
+import { Button } from "@mui/material";
+import { API_BASE_URL } from "../../config";
 
 const OPPORTUNITY_TYPE_CHOICES = [
   { id: "formation", name: "Formation" },
@@ -67,8 +74,50 @@ const PRIORITY_CHOICES = [
   { id: "urgent", name: "Urgent" },
 ];
 
+const B2BQualifyButton = () => {
+  const record = useRecordContext();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [loading, setLoading] = useState(false);
+
+  if (!record) return null;
+
+  const handleQualify = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/b2b/opportunities/${record.id}/qualify`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        notify(payload.detail ?? "B2B qualification failed", { type: "error" });
+        return;
+      }
+      notify(
+        `MVCS B2B score ${payload.score}/100 — ${payload.qualified ? "qualified" : "not qualified"} — ${payload.matched_offer_name}`,
+        { type: payload.qualified ? "success" : "warning" },
+      );
+      refresh();
+    } catch (error: unknown) {
+      notify(error instanceof Error ? error.message : "B2B qualification failed", {
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button onClick={handleQualify} disabled={loading} variant="contained" color="secondary">
+      {loading ? "Qualifying..." : "Qualify B2B"}
+    </Button>
+  );
+};
+
 const EditActions = () => (
   <TopToolbar>
+    <B2BQualifyButton />
     <ShowButton />
     <ListButton />
   </TopToolbar>
@@ -80,32 +129,22 @@ export const OpportunityEdit = () => (
       <TextInput source="title" fullWidth />
       <ReferenceInput source="company_id" reference="companies" />
       <ReferenceInput source="contact_id" reference="contacts" />
-      <SelectInput
-        source="opportunity_type"
-        label="Type"
-        choices={OPPORTUNITY_TYPE_CHOICES}
-      />
+      <SelectInput source="opportunity_type" label="Type" choices={OPPORTUNITY_TYPE_CHOICES} />
       <TextInput source="description" multiline rows={4} fullWidth />
       <TextInput source="detected_need" multiline rows={3} fullWidth />
       <SelectInput source="source" choices={SOURCE_CHOICES} />
       <TextInput source="source_url" label="Source URL" fullWidth />
+      <DateTimeInput source="source_published_at" label="Public signal date" />
       <TextInput source="location" />
       <TextInput source="language" />
       <SelectInput source="status" choices={STATUS_CHOICES} />
       <SelectInput source="priority" choices={PRIORITY_CHOICES} />
       <NumberInput source="score" min={0} max={100} />
-      <TextInput
-        source="recommended_landing_page"
-        label="Recommended Landing Page"
-        fullWidth
-      />
+      <TextInput source="recommended_landing_page" label="Recommended Landing Page" fullWidth />
       <TextInput source="next_action" label="Next Action" fullWidth />
       <TextInput source="offer_id" label="Offer ID" />
       <TextInput source="academy_resource_id" label="Academy Resource ID" />
-      <TextInput
-        source="openproject_work_package_id"
-        label="OpenProject Work Package ID"
-      />
+      <TextInput source="openproject_work_package_id" label="OpenProject Work Package ID" />
       <TextInput source="notes" multiline rows={4} fullWidth />
     </SimpleForm>
   </Edit>

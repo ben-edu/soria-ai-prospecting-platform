@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     academy_categories,
     academy_resources,
+    b2b,
     companies,
     compliance_events,
     contacts,
@@ -23,6 +24,7 @@ router.include_router(service_categories.router, prefix="/service-categories", t
 router.include_router(companies.router, prefix="/companies", tags=["companies"])
 router.include_router(contacts.router, prefix="/contacts", tags=["contacts"])
 router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
+router.include_router(b2b.router, prefix="/b2b", tags=["b2b"])
 router.include_router(offers.router, prefix="/offers", tags=["offers"])
 router.include_router(academy_categories.router, prefix="/academy-categories", tags=["academy"])
 router.include_router(academy_resources.router, prefix="/academy-resources", tags=["academy"])
