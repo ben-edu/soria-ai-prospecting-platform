@@ -68,6 +68,9 @@ spec:
               echo "Running initial seed..."
               /app/.venv/bin/python -m app.scripts.seed_initial_data
 
+              echo "Synchronizing MVCS B2B offer catalog..."
+              /app/.venv/bin/python -m app.scripts.seed_mvcs_b2b
+
               echo "Migration and seed completed."
           env:
             - name: APP_ENV

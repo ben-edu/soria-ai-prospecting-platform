@@ -1,5 +1,6 @@
 import {
   Create,
+  DateTimeInput,
   NumberInput,
   ReferenceInput,
   required,
@@ -69,51 +70,24 @@ export const OpportunityCreate = () => (
   <Create>
     <SimpleForm>
       <TextInput source="title" validate={required()} fullWidth />
-      <ReferenceInput
-        source="company_id"
-        reference="companies"
-        validate={required()}
-      />
+      <ReferenceInput source="company_id" reference="companies" validate={required()} />
       <ReferenceInput source="contact_id" reference="contacts" />
-      <SelectInput
-        source="opportunity_type"
-        label="Type"
-        choices={OPPORTUNITY_TYPE_CHOICES}
-        defaultValue="other"
-      />
+      <SelectInput source="opportunity_type" label="Type" choices={OPPORTUNITY_TYPE_CHOICES} defaultValue="other" />
       <TextInput source="description" multiline rows={4} fullWidth />
       <TextInput source="detected_need" multiline rows={3} fullWidth />
-      <SelectInput
-        source="source"
-        choices={SOURCE_CHOICES}
-        defaultValue="manual"
-      />
+      <SelectInput source="source" choices={SOURCE_CHOICES} defaultValue="manual" />
       <TextInput source="source_url" label="Source URL" fullWidth />
+      <DateTimeInput source="source_published_at" label="Public signal date" />
       <TextInput source="location" />
       <TextInput source="language" defaultValue="fr" />
-      <SelectInput
-        source="status"
-        choices={STATUS_CHOICES}
-        defaultValue="new"
-      />
-      <SelectInput
-        source="priority"
-        choices={PRIORITY_CHOICES}
-        defaultValue="medium"
-      />
+      <SelectInput source="status" choices={STATUS_CHOICES} defaultValue="new" />
+      <SelectInput source="priority" choices={PRIORITY_CHOICES} defaultValue="medium" />
       <NumberInput source="score" min={0} max={100} />
-      <TextInput
-        source="recommended_landing_page"
-        label="Recommended Landing Page"
-        fullWidth
-      />
+      <TextInput source="recommended_landing_page" label="Recommended Landing Page" fullWidth />
       <TextInput source="next_action" label="Next Action" fullWidth />
       <TextInput source="offer_id" label="Offer ID" />
       <TextInput source="academy_resource_id" label="Academy Resource ID" />
-      <TextInput
-        source="openproject_work_package_id"
-        label="OpenProject Work Package ID"
-      />
+      <TextInput source="openproject_work_package_id" label="OpenProject Work Package ID" />
       <TextInput source="notes" multiline rows={4} fullWidth />
     </SimpleForm>
   </Create>
