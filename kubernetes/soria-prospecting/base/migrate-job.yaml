@@ -71,6 +71,9 @@ spec:
               echo "Synchronizing MVCS B2B offer catalog..."
               /app/.venv/bin/python -m app.scripts.seed_mvcs_b2b
 
+              echo "Synchronizing human-approved MVCS-3C shortlist..."
+              /app/.venv/bin/python -m app.scripts.import_mvcs3c_shortlist
+
               echo "Migration and seed completed."
           env:
             - name: APP_ENV
